@@ -60,6 +60,9 @@ p{margin:0}
 /* prototype bar + header */
 .proto{background:var(--dark);color:#fff;font-size:13px}
 .proto .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;flex-wrap:wrap;padding-block:4px}
+.dbpill{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:2px 10px;border-radius:999px;background:#ffffff1a;font-size:12px;font-weight:600}
+.dbpill:before{content:"";width:8px;height:8px;border-radius:50%;background:#aaa}
+.dbpill.on:before{background:#68D3CE}.dbpill.bad:before{background:#F4A6C1}.dbpill.off:before{background:#F5D76E}
 .seg{display:inline-flex;background:#ffffff1a;border-radius:999px;padding:3px;gap:2px}
 .seg button{border:0;background:none;color:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;min-height:30px}
 .seg button[aria-pressed=true]{background:var(--yellow);color:var(--dark)}
@@ -328,7 +331,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .cols span{font-size:12px;color:var(--muted);white-space:nowrap}
 .bars>div{display:grid;grid-template-columns:110px minmax(0,1fr) 44px;gap:10px;align-items:center;padding:7px 0;font-size:14px}
 .bars i{display:block;height:16px;border-radius:999px;border:2px solid var(--dark)}
-.switch{position:relative;width:48px;height:28px;flex:none}
+.switch{position:relative;display:inline-block;vertical-align:middle;width:48px;height:28px;flex:none}
 .switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}
 .switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);border:2px solid var(--dark);transition:.15s}
 .switch span:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:var(--white);border:2px solid var(--dark);top:3px;left:3px;transition:.15s}
@@ -377,10 +380,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
+<script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore-compat.js"></script>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
-<div class="proto"><div class="wrap"><span><b>Prototipe ReCraft</b> · semua data adalah contoh</span><div class="row g8"><span>Lihat sebagai</span><div class="seg" id="seg" role="group" aria-label="Lihat sebagai"><button data-act="role" data-arg="pelanggan" aria-pressed="true">Pelanggan</button><button data-act="role" data-arg="crafter" aria-pressed="false">Crafter</button><button data-act="role" data-arg="admin" aria-pressed="false">Admin</button></div></div></div></div>
+<div class="proto"><div class="wrap"><span><b>Prototipe ReCraft</b> · versi 1.1<span class="dbpill" id="dbstat"></span></span><div class="row g8"><span>Lihat sebagai</span><div class="seg" id="seg" role="group" aria-label="Lihat sebagai"><button data-act="role" data-arg="pelanggan" aria-pressed="true">Pelanggan</button><button data-act="role" data-arg="crafter" aria-pressed="false">Crafter</button><button data-act="role" data-arg="admin" aria-pressed="false">Admin</button></div></div></div></div>
 <header class="top" id="hdr"></header>
 <main id="app"></main>
 <footer id="ftr"></footer>
@@ -577,12 +583,13 @@ const badge = o => { const s = statusOf(o); return `<span class="badge ${BADGE[s
 const DEMO = { name:'Rauda Nur Aulia', email:'rauda@contoh.id', phone:'0812-3456-7890', address:'Jl. Sukabirus No. 21, Dayeuhkolot, Kab. Bandung', demo:true };
 const S = {
   user:null, role:'pelanggan', after:null, err:'', menu:false,
-  orders:[], stories:[], notifs:[], seq:102, onb:0, forgotSent:false,
+  seq:102, onb:0, forgotSent:false,
   exCat:'Semua', exQ:'', ordTab:'Semua', resched:null, editStory:null,
   crTab:'papan', crSel:null, aTab:'ringkasan', aStatus:'Semua', aQ:'',
   prodOn:{ tote:true, pouch:true, scrunchie:true, boneka:true, custom:true },
   chat:{ open:false, msgs:[['bot','Halo! Aku asisten ReCraft. Mau tanya soal produk, penjemputan kain, Memory Tag, atau pesananmu?']] },
-  draft:null
+  draft:null, authReady:false, busy:false, dirty:false, unsub:[], loaded:{ orders:false, stories:false }, tagCache:{}, loginEmail:'',
+  orders:[], stories:[], notifs:[], localOrders:[], localStories:[], localNotifs:[], remoteOrders:[], remoteStories:[], remoteNotifs:[]
 };
 function defOpts(k) { const o = {}; (OPTS[k] || []).forEach(x => o[x[0]] = x[3]); return o; }
 function newDraft(prod) {
@@ -607,7 +614,7 @@ function mkOrder(o) {
   return d;
 }
 const R = DEMO.email;
-S.orders = [
+S.localOrders = [
   mkOrder({ id:'RC-2026-0087', name:'Tote Wisuda', product:'tote', customer:DEMO.name, email:R, date:addDays(TODAY, -6), total:84000, step:5, accent:'yellow', text:'SMA 3 · 24', tag:'qrnfc', garment:'Kemeja', pickup:{ method:'jemput', address:DEMO.address, kurir:'Andi', slot:SLOTS[0] },
     story:{ title:'Hari Terakhir SMA', year:'2024', moment:'Wisuda', text:'Kemeja ini aku pakai di hari kelulusan SMA. Semua teman sekelas menandatanganinya.', privacy:'pribadi' },
     agreement:{ name:DEMO.name, at:addDays(TODAY, -6), typed:'Rauda N. A.', sig:null, leftover:'kembalikan' } }),
@@ -623,13 +630,13 @@ S.orders = [
   mkOrder({ id:'RC-2026-0076', name:'Boneka Beruang Kenangan', product:'boneka', customer:'Salsa Maharani', email:'salsa@contoh.id', date:addDays(TODAY, -18), total:85000, step:7 }),
   mkOrder({ id:'RC-2026-0071', name:'Tote Denim', product:'tote', customer:'Yoga Pratama', email:'yoga@contoh.id', date:addDays(TODAY, -21), total:64000, step:0, cancelled:true, garment:'Celana jeans', material:'Denim', before:'Jeans' })
 ];
-S.stories = [
-  { id:1, owner:R, order:'RC-2026-0087', title:'Hari Terakhir SMA', product:'tote', from:'Kemeja wisuda', year:'2024', moment:'Wisuda', before:'kemeja', tag:'qrnfc', privacy:'pribadi', text:'Kemeja ini aku pakai di hari kelulusan SMA. Semua teman sekelas menandatanganinya. Sekarang jadi tote yang aku bawa ke kampus tiap hari.', pending:true },
-  { id:2, owner:R, order:'RC-2026-0064', title:'Batik Mama', product:'pouch', from:'Gaun batik', year:'1998', moment:'Keluarga', before:'Dress', tag:'qr', privacy:'pribadi', text:'Mama memakai batik ini saat lamaran. Sekarang batiknya ikut ke mana pun aku pergi, di dalam tas.' },
-  { id:3, owner:R, order:'RC-2026-0041', title:'Jeans Akhir Pekan', product:'scrunchie', from:'Jeans lama', year:'2019', moment:'Persahabatan', before:'Jeans', tag:'qr', privacy:'publik', text:'Jeans yang selalu ikut tiap akhir pekan ke Lembang. Satu scrunchie untuk masing-masing dari kami.' }
+S.localStories = [
+  { id:'1', owner:R, order:'RC-2026-0087', title:'Hari Terakhir SMA', product:'tote', from:'Kemeja wisuda', year:'2024', moment:'Wisuda', before:'kemeja', tag:'qrnfc', privacy:'pribadi', text:'Kemeja ini aku pakai di hari kelulusan SMA. Semua teman sekelas menandatanganinya. Sekarang jadi tote yang aku bawa ke kampus tiap hari.', pending:true },
+  { id:'2', owner:R, order:'RC-2026-0064', title:'Batik Mama', product:'pouch', from:'Gaun batik', year:'1998', moment:'Keluarga', before:'Dress', tag:'qr', privacy:'pribadi', text:'Mama memakai batik ini saat lamaran. Sekarang batiknya ikut ke mana pun aku pergi, di dalam tas.' },
+  { id:'3', owner:R, order:'RC-2026-0041', title:'Jeans Akhir Pekan', product:'scrunchie', from:'Jeans lama', year:'2019', moment:'Persahabatan', before:'Jeans', tag:'qr', privacy:'publik', text:'Jeans yang selalu ikut tiap akhir pekan ke Lembang. Satu scrunchie untuk masing-masing dari kami.' }
 ];
 const nAgo = (h) => new Date(TODAY.getTime() - h * 3600e3);
-S.notifs = [
+S.localNotifs = [
   { owner:R, text:'Foto hasil akhir Tote Wisuda siap kamu setujui.', meta:'Tote Wisuda', at:nAgo(2), read:false, icon:'Check', color:'pink', go:'lacak-RC-2026-0087' },
   { owner:R, text:'ReCraft-mu sedang diproduksi.', meta:'Tote Wisuda', at:nAgo(70), read:false, icon:'Scissors', color:'orange', go:'lacak-RC-2026-0087' },
   { owner:R, text:'Kurir Andi sudah menjemput kainmu.', meta:'Tote Wisuda', at:nAgo(120), read:true, icon:'Truck', color:'blue', go:'lacak-RC-2026-0087' },
@@ -673,8 +680,114 @@ function fabricOf(d) { const g = GARMENTS[d.garment]; return Math.round(g[0] * d
 const m2 = x => x.toFixed(2).replace('.', ',') + ' m²';
 const pickupDays = () => [1,2,3,4,5,6,7].map(i => addDays(TODAY, i)).filter(d => d.getDay() !== 0);
 
+/* ---------- Firebase (versi 1.1) ---------- */
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyCDXUNfGxGESKqT5AFpNTKHRZ_jXiPW4gM',
+  authDomain: 'recraft-3424c.firebaseapp.com',
+  projectId: 'recraft-3424c',
+  storageBucket: 'recraft-3424c.firebasestorage.app',
+  messagingSenderId: '778109986008',
+  appId: '1:778109986008:web:8ae979ce5e487404f823ad'
+};
+const FB = { ok:false, auth:null, db:null, err:'', denied:false };
+try {
+  if (window.firebase && typeof firebase.initializeApp === 'function') {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    FB.auth = firebase.auth(); FB.db = firebase.firestore();
+    FB.auth.languageCode = 'id';
+    FB.ok = true;
+  }
+} catch (e) { FB.err = String((e && e.message) || e); FB.ok = false; }
+S.authReady = !FB.ok;
+function rebuild() { S.orders = S.localOrders.concat(S.remoteOrders); S.stories = S.localStories.concat(S.remoteStories); S.notifs = S.localNotifs.concat(S.remoteNotifs); }
+const isReal = () => !!(FB.ok && S.user && !S.user.demo);
+const toDoc = x => JSON.parse(JSON.stringify(x, function (k, v) { if (k === 'remote' || k === '_id') return undefined; return this[k] instanceof Date ? this[k].getTime() : v; }));
+const toDate = v => v === null || v === undefined || v === '' ? null : v instanceof Date ? v : (v && typeof v.toDate === 'function') ? v.toDate() : new Date(v);
+function fromOrder(d) {
+  const o = Object.assign({}, d, { remote:true });
+  o.date = toDate(o.date) || new Date(); o.due = toDate(o.due) || addDays(o.date, 9);
+  o.pickup = Object.assign({ method:'jemput', slot:SLOTS[0], address:'', note:'', courier:'', kurir:'', resi:'' }, o.pickup || {});
+  o.pickup.date = toDate(o.pickup.date) || addDays(o.date, 1);
+  o.history = (o.history || []).map(h => Object.assign({}, h, { at:toDate(h.at) || o.date }));
+  if (o.agreement) o.agreement = Object.assign({}, o.agreement, { at:toDate(o.agreement.at) || o.date });
+  o.opts = Object.assign(defOpts(o.product), o.opts || {});
+  return o;
+}
+const fromStory = (id, d) => Object.assign({ tag:'qr', privacy:'pribadi', moment:'Lainnya', year:'' }, d, { id, remote:true });
+const fromNotif = (id, d) => Object.assign({}, d, { _id:id, remote:true, at:toDate(d.at) || new Date() });
+function dbErr(e) {
+  console.warn('Firebase:', e);
+  const code = (e && (e.code || e.message)) || 'tidak diketahui';
+  if (/permission/i.test(code)) FB.denied = true;
+  if (!S.dbErrShown) { S.dbErrShown = true; toast(/permission/i.test(code) ? 'Database menolak akses. Cek aturan keamanan (Rules) di Firestore.' : 'Gagal menghubungi database: ' + code); }
+  setDbStatus();
+}
+function saveOrder(o) { if (o && o.remote && FB.ok) FB.db.collection('orders').doc(o.id).set(toDoc(o)).catch(dbErr); }
+function saveStory(s) { if (s && s.remote && FB.ok) FB.db.collection('stories').doc(String(s.id)).set(toDoc(s)).catch(dbErr); }
+function pushNotif(n) { if (n.remote && FB.ok) FB.db.collection('notifs').add(toDoc(n)).catch(dbErr); else { S.localNotifs.push(n); rebuild(); } }
+function startListeners(uid) {
+  stopListeners();
+  S.unsub.push(FB.db.collection('orders').onSnapshot(s => { S.remoteOrders = s.docs.map(d => fromOrder(d.data())); S.loaded.orders = true; rebuild(); refresh(); }, e => { S.loaded.orders = true; dbErr(e); refresh(); }));
+  S.unsub.push(FB.db.collection('stories').where('uid', '==', uid).onSnapshot(s => { S.remoteStories = s.docs.map(d => fromStory(d.id, d.data())); S.loaded.stories = true; rebuild(); refresh(); }, e => { S.loaded.stories = true; dbErr(e); refresh(); }));
+  S.unsub.push(FB.db.collection('notifs').where('uid', '==', uid).onSnapshot(s => { S.remoteNotifs = s.docs.map(d => fromNotif(d.id, d.data())); rebuild(); refresh(); }, dbErr));
+}
+const waitData = k => isReal() && !S.loaded[k] ? `<section class="wrap band"><div class="card dash empty"><div class="tile bg-blue">${ic('Refresh', 28)}</div><p class="b">Memuat data dari database…</p></div></section>` : null;
+function stopListeners() { S.loaded = { orders:false, stories:false }; (S.unsub || []).forEach(f => { try { f(); } catch (_) {} }); S.unsub = []; S.remoteOrders = []; S.remoteStories = []; S.remoteNotifs = []; rebuild(); }
+const isTyping = () => { const a = document.activeElement; return !!(a && app.contains(a) && (a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || (a.tagName === 'INPUT' && !/checkbox|radio|file|range|button|submit/.test(a.type)))); };
+function refresh() { if (isTyping()) { S.dirty = true; return; } S.dirty = false; render(true); }
+document.addEventListener('focusout', () => { if (S.dirty) setTimeout(() => { if (S.dirty && !isTyping()) { S.dirty = false; render(true); } }, 150); });
+function onAuth(u) {
+  if (u) {
+    const pp = S.pendingProfile || {};
+    S.user = { uid:u.uid, name:u.displayName || pp.name || String(u.email || '').split('@')[0], email:String(u.email || '').toLowerCase(), phone:pp.phone || '', address:'', demo:false };
+    startListeners(u.uid);
+    FB.db.collection('users').doc(u.uid).get().then(d => { if (d.exists && S.user && S.user.uid === u.uid) { const x = d.data(); ['name', 'phone', 'address'].forEach(k => { if (x[k]) S.user[k] = x[k]; }); refresh(); } }).catch(dbErr);
+  } else {
+    if (S.user && !S.user.demo) S.user = null;
+    stopListeners();
+  }
+  S.authReady = true;
+  const h = location.hash.slice(1);
+  if (u && (h === 'masuk' || h === 'daftar')) { const a = S.after; S.after = null; go(a || 'dashboard'); }
+  else render(true);
+}
+function authMsg(e) {
+  const c = (e && e.code) || '';
+  return ({
+    'auth/invalid-email':'Format email belum benar.',
+    'auth/user-disabled':'Akun ini dinonaktifkan.',
+    'auth/user-not-found':'Email atau kata sandi salah.',
+    'auth/wrong-password':'Email atau kata sandi salah.',
+    'auth/invalid-credential':'Email atau kata sandi salah.',
+    'auth/invalid-login-credentials':'Email atau kata sandi salah.',
+    'auth/email-already-in-use':'Email ini sudah terdaftar. Silakan masuk.',
+    'auth/weak-password':'Kata sandi terlalu lemah, minimal 6 karakter.',
+    'auth/too-many-requests':'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.',
+    'auth/network-request-failed':'Koneksi internet bermasalah. Coba lagi.',
+    'auth/operation-not-allowed':'Login email belum diaktifkan di Firebase (Authentication, Sign-in method).',
+    'auth/unauthorized-domain':'Alamat website ini belum didaftarkan di Firebase (Authorized domains).',
+    'auth/configuration-not-found':'Authentication belum diaktifkan di Firebase.'
+  })[c] || ('Terjadi kesalahan' + (c ? ' (' + c + ')' : '') + '. Coba lagi.');
+}
+function setDbStatus() {
+  const el = document.getElementById('dbstat'); if (!el) return;
+  const st = !FB.ok ? ['off', 'Tanpa database (mode demo)'] : FB.denied ? ['bad', 'Database menolak akses'] : isReal() ? ['on', 'Database tersambung'] : ['on', 'Database siap'];
+  el.className = 'dbpill ' + st[0]; el.textContent = st[1];
+}
+function compressImage(dataUrl, max) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { try { const k = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.75)); } catch (e) { res(dataUrl); } };
+    im.onerror = () => res(dataUrl);
+    im.src = dataUrl;
+  });
+}
+const draftCode = () => isReal() ? 'Dibuat setelah pembayaran' : 'RC-2026-L' + S.seq;
+rebuild();
+
 /* ---------- chrome ---------- */
 function renderChrome(h) {
+  setDbStatus();
   document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.arg === S.role)));
   const logo = `<a class="logo" href="#${S.user ? 'dashboard' : 'beranda'}" data-go="${S.user ? 'dashboard' : 'beranda'}" aria-label="ReCraft, ke halaman utama"><span class="mark"><i></i><i></i><i></i><i></i></span>ReCraft</a>`;
   const navLink = (v, label) => `<a href="#${v}" data-go="${v}" ${h === v || (v === 'buat-unggah' && h.startsWith('buat-')) || (v === 'pesanan' && (h.startsWith('pesanan') || h.startsWith('lacak'))) || (v === 'cerita-saya' && h.startsWith('cerita')) ? 'aria-current="page"' : ''}>${label}</a>`;
@@ -702,7 +815,7 @@ function renderChrome(h) {
     <div><p class="b">Layanan</p>${fl('cara-kerja','Cara kerja')}${fl('jelajahi','Jelajahi produk')}${fl(S.user ? 'buat-unggah' : 'masuk','Mulai ReCraft')}${fl('tag-1','Contoh Memory Tag')}</div>
     <div><p class="b">ReCraft</p>${fl('tentang','Tentang kami')}${fl('faq','FAQ')}${fl('bantuan','Pusat bantuan')}</div>
     <div><p class="b">Akun</p>${S.user ? fl('profil','Profil') + fl('pesanan','Pesanan saya') + fl('cerita-saya','Cerita saya') : fl('masuk','Masuk') + fl('daftar','Daftar')}</div>
-  </div><hr class="hr"><div class="row sb wr note"><span>Jangan langsung dibuang. ReCraft saja.</span><span>Prototipe tugas kuliah. Nama, angka, dan alamat di dalamnya adalah contoh.</span></div></div></div>`;
+  </div><hr class="hr"><div class="row sb wr note"><span>Jangan langsung dibuang. ReCraft saja.</span><span>Prototipe tugas kuliah · versi 1.1. Nama, angka, dan alamat contoh hanya untuk peragaan.</span></div></div></div>`;
 }
 
 /* ---------- public views ---------- */
@@ -892,13 +1005,13 @@ function vLogin() {
   return `<section class="wrap"><form class="auth card col g16" data-sub="login" novalidate>
     <div class="row g12"><span class="mark" style="width:44px;height:44px"><i></i><i></i><i></i><i></i></span><div><h1 class="h3">Masuk ke ReCraft</h1><p class="sm muted">Lanjutkan cerita bajumu.</p></div></div>
     ${S.err ? `<div class="errbox">${ic('Help', 18)}${esc(S.err)}</div>` : ''}
-    <label class="field"><span>Email</span><input class="inp" name="email" type="email" autocomplete="email" placeholder="nama@email.com"></label>
+    <label class="field"><span>Email</span><input class="inp" name="email" type="email" autocomplete="email" placeholder="nama@email.com" value="${esc(S.loginEmail)}"></label>
     <label class="field"><span>Kata sandi</span><input class="inp" name="pw" type="password" autocomplete="current-password" placeholder="Minimal 6 karakter"></label>
-    <div class="row sb"><label class="check"><input type="checkbox" checked> Ingat saya</label><a href="#lupa-sandi" data-go="lupa-sandi" class="sm">Lupa kata sandi?</a></div>
-    <button class="btn btn-pri btn-block" type="submit">Masuk</button>
+    <div class="row sb"><label class="check"><input type="checkbox" name="ingat" checked> Ingat saya</label><a href="#lupa-sandi" data-go="lupa-sandi" class="sm">Lupa kata sandi?</a></div>
+    <button class="btn btn-pri btn-block" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Memproses…' : 'Masuk'}</button>
     <button class="btn btn-cta btn-block" type="button" data-act="demo">${ic('Sparkle', 18)} Pakai akun demo</button>
     <p class="sm muted" style="text-align:center">Belum punya akun? <a href="#daftar" data-go="daftar">Daftar</a></p>
-    <p class="note" style="text-align:center">Akun demo berisi pesanan dan cerita contoh. Daftar akun baru untuk melihat tampilan kosong.</p>
+    <p class="note" style="text-align:center">${FB.ok ? 'Akun demo berisi pesanan contoh dan tidak disimpan ke database. Daftar akun untuk menyimpan pesananmu sungguhan.' : 'Akun demo berisi pesanan dan cerita contoh. Daftar akun baru untuk melihat tampilan kosong.'}</p>
   </form></section>`;
 }
 function vRegister() {
@@ -908,13 +1021,13 @@ function vRegister() {
     <div><h1 class="h3">Buat akun ReCraft</h1><p class="sm muted">Satu akun untuk semua pesanan dan ceritamu.</p></div>
     ${f('nama', 'Nama lengkap', 'text', 'name', 'Nama kamu')}${f('email', 'Email', 'email', 'email', 'nama@email.com')}${f('hp', 'Nomor HP', 'tel', 'tel', '08xx-xxxx-xxxx')}${f('pw', 'Kata sandi', 'password', 'new-password', 'Minimal 6 karakter')}${f('pw2', 'Ulangi kata sandi', 'password', 'new-password', 'Ketik ulang kata sandi')}
     <label class="check"><input type="checkbox" name="setuju" ${V.setuju ? 'checked' : ''}> Saya setuju dengan syarat layanan dan kebijakan privasi ReCraft</label>${E.setuju ? `<span class="ferr">${E.setuju}</span>` : ''}
-    <button class="btn btn-pri btn-block" type="submit">Daftar</button>
+    ${E.umum ? `<div class="errbox">${esc(E.umum)}</div>` : ''}<button class="btn btn-pri btn-block" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Memproses…' : 'Daftar'}</button>
     <p class="sm muted" style="text-align:center">Sudah punya akun? <a href="#masuk" data-go="masuk">Masuk</a></p></form></section>`;
 }
 function vForgot() {
   return `<section class="wrap"><form class="auth card col g16" data-sub="forgot" novalidate>
-    ${S.forgotSent ? `<div class="tile bg-tq">${ic('Mail', 24)}</div><h1 class="h3">Cek emailmu</h1><p class="muted">Kalau email itu terdaftar, tautan untuk mengatur ulang kata sandi akan dikirim. Di prototipe ini tidak ada email yang benar-benar dikirim.</p><a class="btn btn-pri" href="#masuk" data-go="masuk">Kembali ke Masuk</a>`
-    : `<h1 class="h3">Lupa kata sandi?</h1><p class="muted">Masukkan email akunmu. Kami kirimkan tautan untuk mengatur ulang kata sandi.</p>${S.err ? `<div class="errbox">${esc(S.err)}</div>` : ''}<label class="field"><span>Email</span><input class="inp" name="email" type="email" autocomplete="email"></label><button class="btn btn-pri" type="submit">Kirim tautan</button><a class="sm" href="#masuk" data-go="masuk">Kembali ke Masuk</a>`}
+    ${S.forgotSent ? `<div class="tile bg-tq">${ic('Mail', 24)}</div><h1 class="h3">Cek emailmu</h1><p class="muted">${FB.ok ? 'Kalau email itu terdaftar, tautan untuk mengatur ulang kata sandi sudah dikirim. Cek juga folder Spam.' : 'Kalau email itu terdaftar, tautan untuk mengatur ulang kata sandi akan dikirim. Di mode tanpa database tidak ada email yang benar-benar dikirim.'}</p><a class="btn btn-pri" href="#masuk" data-go="masuk">Kembali ke Masuk</a>`
+    : `<h1 class="h3">Lupa kata sandi?</h1><p class="muted">Masukkan email akunmu. Kami kirimkan tautan untuk mengatur ulang kata sandi.</p>${S.err ? `<div class="errbox">${esc(S.err)}</div>` : ''}<label class="field"><span>Email</span><input class="inp" name="email" type="email" autocomplete="email" value="${esc(S.loginEmail)}"></label><button class="btn btn-pri" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Mengirim…' : 'Kirim tautan'}</button><a class="sm" href="#masuk" data-go="masuk">Kembali ke Masuk</a>`}
   </form></section>`;
 }
 function vOnboard() {
@@ -932,6 +1045,7 @@ function vDash() {
   const kain = os.filter(o => !o.cancelled).length * 0.8;
   return `<section class="wrap band" style="padding-top:36px">
     <div class="row sb wr g16"><div><p class="kick c-orange">Dashboard</p><h1 class="h1">Halo, ${esc(first)}!</h1><p class="muted mt8">${active.length ? 'Ini perkembangan ReCraft-mu hari ini.' : 'Siap memberi baju lamamu cerita baru?'}</p></div><button class="btn btn-cta" data-act="newRecraft">${ic('Plus', 18)} Mulai ReCraft</button></div>
+    ${S.user.demo && FB.ok ? `<div class="okbox mt16" style="background:var(--s-yellow);color:var(--i-yellow);border-color:var(--yellow)">${ic('Help', 18)}<span>Kamu memakai akun demo. Pesanan dari akun demo tidak disimpan ke database dan hilang saat halaman dimuat ulang. <a href="#daftar" data-act="logoutTo" data-arg="daftar">Daftar akun</a> untuk mencoba penyimpanan sungguhan.</span></div>` : ''}
     ${!os.length ? `<div class="mt24">${empty('Needle', 'orange', 'Kamu belum memulai ReCraft', 'Unggah foto satu baju untuk melihat bisa jadi apa.', `<button class="btn btn-cta" data-act="newRecraft">Mulai ReCraft pertamamu</button>`)}</div>` : ''}
     ${active.length ? `<h2 class="h3 mt32">Pesanan aktif</h2><div class="grid g-2 mt16">${active.map(o => `<article class="card col">
       <div class="row g16 top-a"><div class="tile" style="width:84px;height:84px;overflow:hidden">${prodImg(o.product)}</div><div style="flex:1"><div class="row sb wr"><b>${esc(o.name)}</b>${badge(o)}</div><div class="sm muted">${o.id} · ${tgl(o.date)}</div><div class="sm mt8"><b>${stepName(o, o.step)}</b> · ${o.history.length ? ago(o.history[o.history.length - 1].at) : ''}</div></div></div>
@@ -1058,7 +1172,7 @@ function fTag() {
 function fPickup() {
   const d = S.draft, pk = d.pickup, days = pickupDays();
   if (!pk.address && S.user.address) pk.address = S.user.address;
-  const code = 'RC-2026-0' + S.seq;
+  const code = draftCode();
   let detail = '';
   if (pk.method === 'jemput') detail = `<div class="ctrl"><span class="lbl">Tanggal penjemputan</span><div class="chips mt8">${days.map(x => `<button class="chip" data-act="pdate" data-arg="${x.toISOString()}" aria-pressed="${pk.date && pk.date.toDateString() === x.toDateString()}">${HARI[x.getDay()]}, ${x.getDate()} ${BULAN[x.getMonth()]}</button>`).join('')}</div></div>
     <div class="ctrl"><span class="lbl">Jam</span><div class="chips mt8">${SLOTS.map(s => `<button class="chip" data-act="pslot" data-arg="${s}" aria-pressed="${pk.slot === s}">${ic('Clock', 16)} ${s}</button>`).join('')}</div></div>
@@ -1077,7 +1191,7 @@ function fPickup() {
 }
 function letterHTML(x) {
   const sig = x.signed ? (x.sig ? `<img class="sigimg" src="${x.sig}" alt="Tanda tangan">` : `<div class="sigtyped">${esc(x.typed)}</div>`) : '<div style="height:70px"></div>';
-  return `<article class="letter"><h3>SURAT PERNYATAAN PERSETUJUAN HASIL PRODUK</h3><p style="text-align:center" class="sm muted">ReCraft · Nomor: ${esc(x.code)}/SPP/RC/${(x.at || TODAY).getFullYear()}</p>
+  return `<article class="letter"><h3>SURAT PERNYATAAN PERSETUJUAN HASIL PRODUK</h3><p style="text-align:center" class="sm muted">ReCraft · Nomor: ${/^RC-/.test(x.code) ? esc(x.code) + '/SPP/RC/' + (x.at || TODAY).getFullYear() : 'dibuat setelah pembayaran'}</p>
     <p class="mt16">Yang bertanda tangan di bawah ini:</p>
     <table><tr><td>Nama</td><td>: ${esc(x.name)}</td></tr><tr><td>Email</td><td>: ${esc(x.email)}</td></tr><tr><td>No. HP</td><td>: ${esc(x.phone || '-')}</td></tr><tr><td>Kode pesanan</td><td>: ${esc(x.code)}</td></tr><tr><td>Produk</td><td>: ${esc(x.product)}</td></tr><tr><td>Bahan asal</td><td>: ${esc(x.from)}</td></tr></table>
     <p>dengan ini menyatakan bahwa:</p>
@@ -1093,7 +1207,7 @@ function letterHTML(x) {
 }
 function draftLetter() {
   const d = S.draft, a = d.agree;
-  return { code:'RC-2026-0' + S.seq, name:S.user.name, email:S.user.email, phone:S.user.phone, product:PROD[d.product].name + ' (' + optSummary(d.product, d.opts) + ')', from:d.count + ' × ' + d.garment + ', ' + d.material, leftover:a.leftover, signed:a.signed, sig:a.sig, typed:a.typed, at:a.at };
+  return { code:draftCode(), name:S.user.name, email:S.user.email, phone:S.user.phone, product:PROD[d.product].name + ' (' + optSummary(d.product, d.opts) + ')', from:d.count + ' × ' + d.garment + ', ' + d.material, leftover:a.leftover, signed:a.signed, sig:a.sig, typed:a.typed, at:a.at };
 }
 function fAgree() {
   const a = S.draft.agree;
@@ -1115,11 +1229,11 @@ function fPay() {
     <div class="ctrl"><span class="lbl">${d.pay === 'kartu' ? 'Jenis kartu' : d.pay === 'ewallet' ? 'Pilih e-wallet' : 'Pilih bank'}</span><div class="chips mt8">${PAY[d.pay][1].map(b => `<button class="chip" data-act="payWith" data-arg="${b}" aria-pressed="${d.payWith === b}">${b}</button>`).join('')}</div></div>
     <div class="card soft mt16"><b>Dikirim ke</b><p class="muted sm mt8">${esc(S.user.name)} · ${esc(S.user.phone || '-')}<br>${esc(d.pickup.address || S.user.address || 'Alamat di profil')}</p></div>
     <div class="okbox mt16">${ic('Doc', 18)}Surat persetujuan sudah ditandatangani.</div>
-    <button class="btn btn-cta btn-block mt24" data-act="placeOrder">Bayar ${rp(pr.total)}</button>`;
+    <button class="btn btn-cta btn-block mt24" data-act="placeOrder" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Memproses pembayaran…' : 'Bayar ' + rp(pr.total)}</button>${isReal() ? '<p class="note mt8">Pesanan akan disimpan ke database ReCraft.</p>' : ''}`;
 }
 
 function vSuccess(m) {
-  const o = findOrder(m[1]); if (!o) { go('pesanan'); return null; }
+  const o = findOrder(m[1]); if (!o) { const w = waitData('orders'); if (w) return w; go('pesanan'); return null; }
   const next = o.pickup.method === 'jemput' ? `Kurir ReCraft akan menjemput kain pada <b>${tglh(o.pickup.date)}, pukul ${o.pickup.slot}</b>. Siapkan kain sesuai checklist dan tempel label kode pesanan.` : o.pickup.method === 'antar' ? `Antar kainmu ke <b>${STUDIO}</b> (Senin–Sabtu, 09.00–17.00) dan sebutkan kode pesanan.` : `Kirim paket kain ke <b>${STUDIO}</b>, lalu masukkan nomor resi di halaman pelacakan.`;
   return `<section class="wrap band"><div class="card col g16" style="max-width:720px;margin:0 auto;text-align:center;align-items:center;overflow:hidden;padding-top:0">
     <div style="width:calc(100% + 48px)">${quilt()}</div>
@@ -1142,7 +1256,7 @@ function vOrders() {
       : empty('Box', 'blue', os.length ? 'Tidak ada pesanan di kategori ini' : 'Belum ada pesanan', os.length ? 'Coba pilih kategori lain.' : 'Pesanan yang kamu buat akan muncul di sini.', os.length ? '' : `<button class="btn btn-cta" data-act="newRecraft">Mulai ReCraft</button>`)}</div></section>`;
 }
 function vOrder(m) {
-  const o = findOrder(m[1]); if (!o || o.email !== S.user.email) { go('pesanan'); return null; }
+  const o = findOrder(m[1]); if (!o || o.email !== S.user.email) { const w = !o && waitData('orders'); if (w) return w; go('pesanan'); return null; }
   const p = PROD[o.product];
   const spec = (OPTS[o.product] || []).map(([k, lab, ch]) => [lab, ch[o.opts[k]] ? ch[o.opts[k]][0] : '-']).concat([['Warna aksen', CNAME[o.accent]], ['Memory Tag', TAGS[o.tag][0]], ['Penyerahan kain', PICK[o.pickup.method][0]], ['Bahan asal', o.garment + ', ' + o.material]]).concat(o.text ? [['Teks bordir', o.text]] : []);
   const ag = o.agreement;
@@ -1157,7 +1271,7 @@ function vOrder(m) {
     </div></section>`;
 }
 function vTrack(m) {
-  const o = findOrder(m[1]); if (!o || o.email !== S.user.email) { go('pesanan'); return null; }
+  const o = findOrder(m[1]); if (!o || o.email !== S.user.email) { const w = !o && waitData('orders'); if (w) return w; go('pesanan'); return null; }
   if (o.cancelled) { go('pesanan-' + o.id); return null; }
   const pct = Math.round(o.step / 7 * 100), pk = o.pickup;
   const tl = [0,1,2,3,4,5,6,7].map(s => { const h = o.history.find(x => x.s === s); const cls = s < o.step ? 'done' : s === o.step ? (o.step === 7 ? 'done' : 'cur') : 'up';
@@ -1205,8 +1319,8 @@ function vStories() {
     <div class="mt24">${st.length ? `<div class="grid g-3">${st.map(storyCard).join('')}</div>` : empty('Book', 'pink', 'Belum ada cerita', 'Cerita dari ReCraft pertamamu akan muncul di sini setelah produknya diterima.', `<button class="btn btn-cta" data-act="newRecraft">Mulai ReCraft</button>`)}</div></section>`;
 }
 function vStory(m) {
-  const s = S.stories.find(x => String(x.id) === m[1]); if (!s || s.owner !== S.user.email || s.pending) { go('cerita-saya'); return null; }
-  const p = PROD[s.product], o = findOrder(s.order), editing = S.editStory === s.id;
+  const s = S.stories.find(x => String(x.id) === m[1]); if (!s || s.owner !== S.user.email || s.pending) { const w = !s && waitData('stories'); if (w) return w; go('cerita-saya'); return null; }
+  const p = PROD[s.product], o = findOrder(s.order), editing = String(S.editStory) === String(s.id);
   return `<section class="wrap band" style="padding-top:36px"><a class="linkbtn" href="#cerita-saya" data-go="cerita-saya">${ic('ArrowLeft', 16)} Cerita saya</a>
     <div class="grid g-2 mt16" style="align-items:start;gap:36px">
       <div><div class="bas" id="bas"><div class="bas-before">${beforeImg(s.before, 'Sebelum: ' + s.from)}</div><div class="bas-after">${prodImg(s.product, 'Sesudah: ' + p.name)}</div><span class="handle">${ic('ChevronLeft', 14)}${ic('ChevronRight', 14)}</span><span class="lb" style="left:12px">Sebelum</span><span class="lb" style="right:12px">Sesudah</span><input type="range" min="0" max="100" value="50" data-in="bas" aria-label="Geser untuk membandingkan sebelum dan sesudah"></div><p class="note mt8">Geser untuk membandingkan.</p></div>
@@ -1217,7 +1331,15 @@ function vStory(m) {
     <div class="grid g-4 mt32">${[['Shirt','blue','Kain asalnya',s.from + ', ' + s.year],['Heart','pink','Momennya',s.moment],['Needle','orange','Diubah jadi',p.name + (o ? ' oleh ' + o.crafter : '')],['QR','purple','Sekarang','Memory Tag ' + TAGS[s.tag][0] + ' · ' + (s.privacy === 'publik' ? 'publik' : 'pribadi')]].map((c, i) => `<div class="vcard bg-${c[1]}"><span class="tiny muted b">Bab ${i + 1}</span><b class="h4">${c[2]}</b><p class="sm">${esc(c[3])}</p></div>`).join('')}</div></section>`;
 }
 function vTag(m) {
-  const s = S.stories.find(x => String(x.id) === m[1]); if (!s) { go('beranda'); return null; }
+  const s = S.stories.find(x => String(x.id) === m[1]) || S.tagCache[m[1]];
+  if (!s) {
+    if (FB.ok && S.tagCache[m[1]] === undefined) {
+      S.tagCache[m[1]] = false;
+      FB.db.collection('stories').doc(m[1]).get().then(d => { S.tagCache[m[1]] = d.exists ? fromStory(d.id, d.data()) : null; render(true); }).catch(e => { S.tagCache[m[1]] = null; dbErr(e); render(true); });
+    }
+    if (S.tagCache[m[1]] === false) return `<section class="wrap band"><div class="card dash empty"><div class="tile bg-purple">${ic('QR', 28)}</div><p class="b">Membuka cerita…</p></div></section>`;
+    return `<section class="wrap band">${empty('QR', 'purple', 'Cerita tidak ditemukan', 'Tag ini belum terhubung ke cerita mana pun.', '<a class="btn btn-sec" href="#beranda" data-go="beranda">Ke beranda</a>')}</section>`;
+  }
   const p = PROD[s.product], via = s.tag === 'nfc' ? 'Dibuka lewat NFC Tag' : 'Dipindai dari Memory Tag';
   const own = S.user && S.user.email === s.owner;
   return `<section class="wrap band"><div class="grid g-2" style="align-items:center;gap:40px">
@@ -1254,6 +1376,13 @@ function vNotif() {
 }
 
 /* ---------- crafter ---------- */
+function dbBanner(role) {
+  const y = 'background:var(--s-yellow);color:var(--i-yellow);border-color:var(--yellow)';
+  if (!FB.ok) return `<div class="okbox" style="${y};margin-bottom:20px">${ic('Help', 18)}<span>Mode tanpa database: hanya data contoh yang tampil.</span></div>`;
+  if (!isReal()) return `<div class="okbox" style="${y};margin-bottom:20px">${ic('Help', 18)}<span>Saat ini hanya data contoh yang tampil. <a href="#masuk" data-act="loginAs" data-arg="${role}">Masuk dengan akun asli</a> untuk melihat dan mengubah pesanan dari database.</span></div>`;
+  return `<div class="okbox" style="margin-bottom:20px">${ic('Check', 18)}<span>Tersambung ke database: ${S.remoteOrders.length} pesanan asli tampil bersama data contoh. Pesanan asli ditandai label <b>database</b>.</span></div>`;
+}
+const dbTag = o => o.remote ? ' <span class="pill soft-tq">database</span>' : '';
 const KCOLS = [['Kain belum tiba', [0, 1], 'yellow'], ['Kain diterima', [2, 3], 'purple'], ['Produksi', [4], 'orange'], ['Quality check', [5], 'pink'], ['Dikirim dan selesai', [6, 7], 'tq']];
 function crafterOrders() { return S.orders.filter(o => !o.cancelled).sort((a, b) => b.date - a.date); }
 function crNextLabel(o) {
@@ -1276,7 +1405,7 @@ function vCrafter() {
   } else {
     main = `<div class="row sb wr"><div><h1 class="h2">Papan kerja</h1><p class="muted mt8">Klik kartu untuk melihat detail, cerita pelanggan, dan memindahkan tahapnya.</p></div></div>
       <div class="grid g-4 mt24">${kpi.map(k => `<div class="kpi"><span class="sm muted">${k[0]}</span><span class="stat">${k[1]}</span></div>`).join('')}</div>
-      <div class="kanban mt24">${KCOLS.map(c => { const all = os.filter(o => c[1].includes(o.step)), items = c[1].includes(7) ? all.filter(o => o.step === 6).concat(all.filter(o => o.step === 7).slice(0, 3)) : all; return `<div class="kcol"><div class="row sb"><b class="sm">${c[0]}</b><span class="pill soft-${c[2]}">${all.length}</span></div>${items.map(o => `<button class="kcard" data-act="crSel" data-arg="${o.id}" aria-pressed="${sel && sel.id === o.id}"><span class="row g8"><span class="th">${prodImg(o.product)}</span><span><b class="sm">${esc(o.name)}</b><br><span class="tiny muted">${esc(o.customer)}</span></span></span><span class="tiny muted">${o.id} · ${o.step < 7 ? 'tenggat ' + o.due.getDate() + ' ' + BULAN[o.due.getMonth()] : 'selesai'}</span></button>`).join('') || '<p class="tiny muted">Kosong</p>'}${all.length > items.length ? `<p class="tiny muted">dan ${all.length - items.length} pesanan selesai lainnya</p>` : ''}</div>`; }).join('')}</div>`;
+      <div class="kanban mt24">${KCOLS.map(c => { const all = os.filter(o => c[1].includes(o.step)), items = c[1].includes(7) ? all.filter(o => o.step === 6).concat(all.filter(o => o.step === 7).slice(0, 3)) : all; return `<div class="kcol"><div class="row sb"><b class="sm">${c[0]}</b><span class="pill soft-${c[2]}">${all.length}</span></div>${items.map(o => `<button class="kcard" data-act="crSel" data-arg="${o.id}" aria-pressed="${sel && sel.id === o.id}"><span class="row g8"><span class="th">${prodImg(o.product)}</span><span><b class="sm">${esc(o.name)}</b><br><span class="tiny muted">${esc(o.customer)}</span>${dbTag(o)}</span></span><span class="tiny muted">${o.id} · ${o.step < 7 ? 'tenggat ' + o.due.getDate() + ' ' + BULAN[o.due.getMonth()] : 'selesai'}</span></button>`).join('') || '<p class="tiny muted">Kosong</p>'}${all.length > items.length ? `<p class="tiny muted">dan ${all.length - items.length} pesanan selesai lainnya</p>` : ''}</div>`; }).join('')}</div>`;
   }
   const detail = sel ? `<div class="card col g16 mt24" id="crdetail"><div class="row sb wr"><div class="row g12"><div class="tile" style="width:72px;height:72px;overflow:hidden">${prodImg(sel.product)}</div><div><h2 class="h3">${esc(sel.name)}</h2><div class="sm muted">${sel.id} · ${esc(sel.customer)} · ${stepName(sel, sel.step)}</div></div></div>${badge(sel)}</div>
     <div class="grid g-3">
@@ -1288,7 +1417,7 @@ function vCrafter() {
     <div class="row wr g12"><label class="btn btn-sec btn-sm" style="position:relative">${ic('Upload', 16)} Unggah foto progres<input type="file" accept="image/*" data-ch="crPhoto" style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Unggah foto progres"></label>
       <button class="btn btn-pri btn-sm" data-act="crNext" data-arg="${sel.id}" ${sel.step === 7 || (sel.step === 5 && sel.qc === 'waiting') ? 'disabled' : ''}>${crNextLabel(sel)}</button></div>
     <p class="note">Perubahan tahap di sini ikut terlihat di halaman pelacakan pelanggan dan di konsol admin.</p></div>` : '';
-  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu crafter"><span class="sbl tiny muted b" style="padding:6px 12px">Bu Ratna · Crafter</span>${nav.map(n => `<button data-act="crTab" data-arg="${n[0]}" ${S.crTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${main}${detail}</div></div></section>`;
+  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu crafter"><span class="sbl tiny muted b" style="padding:6px 12px">Bu Ratna · Crafter</span>${nav.map(n => `<button data-act="crTab" data-arg="${n[0]}" ${S.crTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner('crafter')}${main}${detail}</div></div></section>`;
 }
 
 /* ---------- admin ---------- */
@@ -1296,10 +1425,10 @@ function vAdmin() {
   const nav = [['ringkasan', 'Chart', 'Ringkasan'], ['pesanan', 'Box', 'Pesanan'], ['jemput', 'Truck', 'Jadwal penjemputan'], ['pelanggan', 'Users', 'Pelanggan'], ['produk', 'Bag', 'Produk'], ['crafter', 'Needle', 'Crafter']];
   const os = S.orders.slice().sort((a, b) => b.date - a.date);
   let main = '';
-  const orderRows = list => `<div class="tblwrap"><table class="tbl stack"><thead><tr><th>Kode</th><th>Pelanggan</th><th>Produk</th><th>Bahan</th><th>Status</th><th>Tanggal</th><th class="num">Total</th></tr></thead><tbody>${list.map(o => `<tr><td class="b nw">${o.id}</td><td>${esc(o.customer)}</td><td>${esc(o.name)}</td><td>${esc(o.material)}</td><td>${badge(o)}</td><td class="nw">${tgl(o.date)}</td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`;
+  const orderRows = list => `<div class="tblwrap"><table class="tbl stack"><thead><tr><th>Kode</th><th>Pelanggan</th><th>Produk</th><th>Bahan</th><th>Status</th><th>Tanggal</th><th class="num">Total</th></tr></thead><tbody>${list.map(o => `<tr><td class="b nw">${o.id}</td><td>${esc(o.customer)}${dbTag(o)}</td><td>${esc(o.name)}</td><td>${esc(o.material)}</td><td>${badge(o)}</td><td class="nw">${tgl(o.date)}</td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`;
   if (S.aTab === 'ringkasan') {
     const weeks = [18, 22, 19, 27, 31, 29, 36, 41], mx = Math.max(...weeks);
-    const counts = PRODUCTS.map(p => [p, { tote:46, pouch:38, scrunchie:52, boneka:27, custom:9 }[p.key] + os.filter(o => o.product === p.key && !o.cancelled && o.id >= 'RC-2026-0102').length]);
+    const counts = PRODUCTS.map(p => [p, { tote:46, pouch:38, scrunchie:52, boneka:27, custom:9 }[p.key] + os.filter(o => o.product === p.key && !o.cancelled && (o.remote || o.isNew)).length]);
     const cm = Math.max(...counts.map(c => c[1]));
     const today = os.filter(o => o.pickup.method === 'jemput' && o.step === 0 && !o.cancelled);
     main = `<h1 class="h2">Ringkasan</h1><p class="muted mt8">Gambaran bisnis ReCraft bulan ini. Angka contoh untuk prototipe.</p>
@@ -1333,15 +1462,15 @@ function vAdmin() {
     const cr = [['Bu Ratna', 'Tote dan pouch', 6, '4,9'], ['Mas Dika', 'Boneka', 4, '4,8'], ['Kak Wulan', 'Scrunchie dan custom', 5, '4,9']];
     main = `<h1 class="h2">Crafter</h1><div class="grid g-3 mt24">${cr.map((c, i) => `<div class="card col g8"><div class="avatar" style="background:var(--${['orange', 'tq', 'pink'][i]})">${c[0].split(' ').map(w => w[0]).join('')}</div><b class="h4">${c[0]}</b><span class="sm muted">Spesialis ${c[1]}</span><div class="sumline"><span>Pesanan aktif</span><span>${c[2]}</span></div><div class="sumline"><span>Rating</span><span>${c[3]}</span></div></div>`).join('')}</div><p class="note mt12">Nama crafter adalah contoh.</p>`;
   }
-  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu admin"><span class="sbl tiny muted b" style="padding:6px 12px">Konsol admin</span>${nav.map(n => `<button data-act="aTab" data-arg="${n[0]}" ${S.aTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${main}</div></div></section>`;
+  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu admin"><span class="sbl tiny muted b" style="padding:6px 12px">Konsol admin</span>${nav.map(n => `<button data-act="aTab" data-arg="${n[0]}" ${S.aTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner('admin')}${main}</div></div></section>`;
 }
 
 /* ---------- order engine ---------- */
-function notify(o, text, icon, color, goTo) { S.notifs.push({ owner:o.email, text, meta:o.name, at:new Date(), read:false, icon, color, go:goTo || 'lacak-' + o.id }); }
+function notify(o, text, icon, color, goTo) { pushNotif({ owner:o.email, uid:o.uid || '', text, meta:o.name, at:new Date(), read:false, icon, color, go:goTo || 'lacak-' + o.id, remote:!!o.remote }); }
 function advance(o) {
   if (o.cancelled || o.step >= 7) return false;
   if (o.step === 5) {
-    if (o.qc === 'revision') { o.qc = 'waiting'; o.revUsed = true; o.history.push({ s:-1, extra:true, label:'Foto hasil perbaikan dikirim', at:new Date() }); notify(o, 'Foto hasil perbaikan siap kamu setujui.', 'Check', 'pink'); return true; }
+    if (o.qc === 'revision') { o.qc = 'waiting'; o.revUsed = true; o.history.push({ s:-1, extra:true, label:'Foto hasil perbaikan dikirim', at:new Date() }); notify(o, 'Foto hasil perbaikan siap kamu setujui.', 'Check', 'pink'); saveOrder(o); return true; }
     if (o.qc !== 'approved') return false;
   }
   o.step++;
@@ -1350,26 +1479,48 @@ function advance(o) {
   const N = { 1:['Kain sudah dalam perjalanan ke studio.', 'Truck', 'blue'], 2:['Kainmu sudah diterima studio.', 'Box', 'tq'], 3:['Desain sudah dikonfirmasi crafter.', 'Check', 'purple'], 4:['ReCraft-mu sedang diproduksi.', 'Scissors', 'orange'], 5:['Foto hasil akhir siap kamu setujui.', 'Check', 'pink'], 6:['ReCraft-mu sudah dikirim.', 'Truck', 'blue'], 7:['ReCraft-mu sudah diterima.', 'Box', 'tq'] }[o.step];
   notify(o, N[0], N[1], N[2]);
   if (o.step === 7) {
-    const st = S.stories.find(s => s.order === o.id);
-    if (st && st.pending) { st.pending = false; notify(o, 'Ceritamu sudah masuk ke Cerita Saya.', 'Book', 'pink', 'cerita-' + st.id); }
+    if (o.remote) {
+      if (o.story && o.story.title) { FB.db.collection('stories').doc(o.id).update({ pending:false }).catch(dbErr); notify(o, 'Ceritamu sudah masuk ke Cerita Saya.', 'Book', 'pink', 'cerita-' + o.id); }
+    } else {
+      const st = S.stories.find(s => s.order === o.id);
+      if (st && st.pending) { st.pending = false; notify(o, 'Ceritamu sudah masuk ke Cerita Saya.', 'Book', 'pink', 'cerita-' + st.id); }
+    }
   }
+  saveOrder(o);
   return true;
 }
-function placeOrder() {
-  const d = S.draft, pr = priceOf(d), id = 'RC-2026-0' + (S.seq++), p = PROD[d.product];
-  const o = { id, name:p.name + (d.story.title ? ' · ' + d.story.title : ''), product:d.product, customer:S.user.name, email:S.user.email, date:new Date(), total:pr.total, step:0, cancelled:false, qc:'none', revUsed:false, revNote:'',
-    accent:d.accent, text:d.text.trim(), tag:d.tag, garment:d.garment, material:d.material, opts:Object.assign({}, d.opts), crafter:'Bu Ratna', before:d.photos[0] ? d.photos[0].src : GARMENTS[d.garment][1],
-    pickup:{ method:d.pickup.method, date:d.pickup.method === 'jemput' ? d.pickup.date : addDays(TODAY, 1), slot:d.pickup.slot || SLOTS[0], address:d.pickup.address || S.user.address, note:d.pickup.note, courier:d.pickup.courier, kurir:'', resi:'' },
+async function placeOrder() {
+  const d = S.draft, pr = priceOf(d), p = PROD[d.product], remote = isReal();
+  let id;
+  if (remote) {
+    try {
+      const ref = FB.db.collection('meta').doc('counter');
+      const n = await FB.db.runTransaction(async t => { const snap = await t.get(ref); const cur = snap.exists && snap.data().seq ? snap.data().seq : 102; t.set(ref, { seq:cur + 1 }); return cur; });
+      id = 'RC-2026-0' + n;
+    } catch (e) { dbErr(e); S.busy = false; S.err = 'Pesanan gagal disimpan ke database. Periksa koneksi, lalu coba lagi.'; rerender(); return; }
+  } else id = 'RC-2026-L' + (S.seq++);
+  const o = { id, uid:remote ? S.user.uid : '', isNew:true, remote, name:p.name + (d.story.title ? ' · ' + d.story.title : ''), product:d.product, customer:S.user.name, email:S.user.email, date:new Date(), total:pr.total, step:0, cancelled:false, qc:'none', revUsed:false, revNote:'',
+    accent:d.accent, text:d.text.trim(), tag:d.tag, garment:d.garment, material:d.material, opts:Object.assign({}, d.opts), crafter:'Bu Ratna', before:d.photos[0] ? (d.photos[0].src.startsWith('data:') ? d.photos[0].src : 'kemeja') : GARMENTS[d.garment][1],
+    pickup:{ method:d.pickup.method, date:d.pickup.method === 'jemput' ? d.pickup.date : addDays(TODAY, 1), slot:d.pickup.slot || SLOTS[0], address:d.pickup.address || S.user.address || '', note:d.pickup.note, courier:d.pickup.courier, kurir:'', resi:'' },
     story:Object.assign({}, d.story), custom:d.custom,
     agreement:{ name:S.user.name, at:d.agree.at, typed:d.agree.typed, sig:d.agree.sig, leftover:d.agree.leftover }, history:[{ s:0, label:'Pesanan dikonfirmasi', at:new Date() }] };
+  if (d.photos[0] && d.photos[0].src === PH.kemeja) o.before = 'kemeja';
   o.due = addDays(o.date, d.product === 'boneka' || d.product === 'custom' ? 14 : 9);
-  S.orders.push(o);
-  const sid = Math.max(0, ...S.stories.map(s => s.id)) + 1;
-  S.stories.push({ id:sid, owner:S.user.email, order:id, title:d.story.title, product:d.product, from:d.garment, year:d.story.year || String(TODAY.getFullYear()), moment:d.story.moment || 'Lainnya', before:o.before, tag:d.tag, privacy:d.story.privacy, text:d.story.text, pending:true });
+  const story = { id, owner:S.user.email, uid:o.uid, order:id, title:d.story.title, product:d.product, from:d.garment, year:d.story.year || String(TODAY.getFullYear()), moment:d.story.moment || 'Lainnya', before:o.before, tag:d.tag, privacy:d.story.privacy, text:d.story.text, pending:true, remote };
+  if (remote) {
+    try {
+      await FB.db.collection('orders').doc(id).set(toDoc(o));
+      await FB.db.collection('stories').doc(id).set(toDoc(story));
+    } catch (e) { dbErr(e); S.busy = false; S.err = 'Pesanan gagal disimpan ke database: ' + ((e && e.code) || 'kesalahan tidak diketahui') + '.'; rerender(); return; }
+    S.remoteOrders = S.remoteOrders.filter(x => x.id !== id).concat(o);
+    if (!S.remoteStories.some(x => x.id === id)) S.remoteStories = S.remoteStories.concat(story);
+  } else { S.localOrders.push(o); S.localStories.push(story); }
+  rebuild();
   notify(o, 'Pesanan ' + id + ' sudah kami terima.', 'Check', 'tq');
   if (o.pickup.method === 'jemput') notify(o, 'Penjemputan kain dijadwalkan ' + tglh(o.pickup.date) + ', ' + o.pickup.slot + '.', 'Truck', 'blue');
-  S.draft = newDraft();
+  S.draft = newDraft(); S.busy = false;
   go('berhasil-' + id);
+  toast(remote ? 'Pembayaran berhasil (simulasi). Pesanan tersimpan di database.' : 'Pembayaran berhasil (simulasi).');
 }
 function validateStep(i) {
   const d = S.draft;
@@ -1420,7 +1571,9 @@ const ACT = {
   newRecraft() { if (S.draft.reached > 0 && flowIdx() < 0) { go(FLOW[Math.min(S.draft.reached, FLOW.length - 1)][0]); toast('Melanjutkan ReCraft yang belum selesai.'); return; } S.draft = newDraft(); go('buat-unggah'); },
   cancelFlow() { S.draft = newDraft(); S.err = ''; toast('ReCraft dibatalkan. Tidak ada yang tersimpan.'); go(S.user ? 'dashboard' : 'beranda'); },
   demo() { S.user = Object.assign({}, DEMO); S.err = ''; const a = S.after; S.after = null; toast('Masuk sebagai ' + DEMO.name); if (a === 'buat-unggah') S.draft = newDraft(S.draft.product); go(a || 'dashboard'); },
-  logout() { S.user = null; S.draft = newDraft(); toast('Kamu sudah keluar.'); go('beranda'); },
+  logout() { const real = isReal(); S.draft = newDraft(); S.after = null; go('beranda'); if (real) FB.auth.signOut().then(() => toast('Kamu sudah keluar.')).catch(dbErr); else { S.user = null; toast('Kamu sudah keluar.'); render(true); } },
+  logoutTo(a) { if (!isReal()) S.user = null; S.draft = newDraft(); go(a || 'beranda'); },
+  loginAs(role) { if (S.user && S.user.demo) S.user = null; S.after = role; go('masuk'); },
   excat(c) { S.exCat = c; document.querySelectorAll('[data-act=excat]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.arg === c))); applyExplore(); },
   samplePhoto() { const d = S.draft; if (d.photos.length >= 4) { toast('Maksimal 4 foto.'); return; } d.photos.push({ name:'kemeja-contoh.jpg', src:PH.kemeja }); d.garment = 'Kemeja'; d.material = 'Katun'; S.err = ''; rerender(); },
   rmPhoto(i) { S.draft.photos.splice(+i, 1); rerender(); },
@@ -1453,22 +1606,29 @@ const ACT = {
   unsign() { const a = S.draft.agree; a.signed = false; a.strokes = []; a.sig = null; a.ok = false; S.draft.reached = Math.min(S.draft.reached, 8); rerender(); },
   pay(p) { S.draft.pay = p; S.draft.payWith = PAY[p][1][0]; rerender(); },
   payWith(b) { S.draft.payWith = b; rerender(); },
-  placeOrder() { if (!S.draft.agree.signed) { S.err = 'Tanda tangani surat persetujuan dulu.'; go('buat-surat'); return; } placeOrder(); toast('Pembayaran berhasil (simulasi).'); },
+  placeOrder() { if (S.busy) return; if (!S.draft.agree.signed) { S.err = 'Tanda tangani surat persetujuan dulu.'; go('buat-surat'); return; } S.busy = true; S.err = ''; rerender(); placeOrder(); },
   ordTab(t) { S.ordTab = t; rerender(); },
   simNext(id) { const o = findOrder(id); if (o && advance(o)) { toast(stepName(o, o.step)); rerender(); } },
-  qcApprove(id) { const o = findOrder(id); o.qc = 'approved'; o.history.push({ s:-1, extra:true, label:'Kamu menyetujui foto hasil akhir', at:new Date() }); toast('Terima kasih! Pesanan segera dikemas dan dikirim.'); rerender(); },
-  qcRevise(id) { const o = findOrder(id); const n = document.getElementById('revnote'); o.revNote = n ? n.value.trim() : ''; o.qc = 'revision'; o.history.push({ s:-1, extra:true, label:'Kamu meminta satu kali perbaikan', at:new Date() }); toast('Permintaan perbaikan dikirim ke crafter.'); rerender(); },
+  qcApprove(id) { const o = findOrder(id); o.qc = 'approved'; o.history.push({ s:-1, extra:true, label:'Kamu menyetujui foto hasil akhir', at:new Date() }); saveOrder(o); toast('Terima kasih! Pesanan segera dikemas dan dikirim.'); rerender(); },
+  qcRevise(id) { const o = findOrder(id); const n = document.getElementById('revnote'); o.revNote = n ? n.value.trim() : ''; o.qc = 'revision'; o.history.push({ s:-1, extra:true, label:'Kamu meminta satu kali perbaikan', at:new Date() }); saveOrder(o); toast('Permintaan perbaikan dikirim ke crafter.'); rerender(); },
   resched(id) { const o = findOrder(id); S.resched = id; S.rsDate = o.pickup.date; S.rsSlot = o.pickup.slot; rerender(); },
   rsDate(iso) { S.rsDate = new Date(iso); rerender(); },
   rsSlot(s) { S.rsSlot = s; rerender(); },
-  rsSave(id) { const o = findOrder(id); o.pickup.date = S.rsDate; o.pickup.slot = S.rsSlot; o.history.push({ s:-1, extra:true, label:'Jadwal penjemputan diubah ke ' + tglh(S.rsDate) + ', ' + S.rsSlot, at:new Date() }); S.resched = null; toast('Jadwal penjemputan diperbarui.'); rerender(); },
+  rsSave(id) { const o = findOrder(id); o.pickup.date = S.rsDate; o.pickup.slot = S.rsSlot; o.history.push({ s:-1, extra:true, label:'Jadwal penjemputan diubah ke ' + tglh(S.rsDate) + ', ' + S.rsSlot, at:new Date() }); S.resched = null; saveOrder(o); toast('Jadwal penjemputan diperbarui.'); rerender(); },
   rsCancel() { S.resched = null; rerender(); },
-  saveResi(id) { const o = findOrder(id), v = (document.getElementById('resi') || {}).value || ''; if (v.trim().length < 6) { toast('Nomor resi minimal 6 karakter.'); return; } o.pickup.resi = v.trim(); o.history.push({ s:-1, extra:true, label:'Nomor resi ' + o.pickup.resi + ' disimpan', at:new Date() }); toast('Nomor resi disimpan.'); rerender(); },
-  editStory(id) { S.editStory = id ? +id : null; rerender(); },
-  saveStory(id) { const s = S.stories.find(x => x.id === +id); const t = document.getElementById('esTitle').value.trim(), x = document.getElementById('esText').value.trim(); if (t.length < 3 || x.length < 20) { toast('Judul minimal 3 karakter dan cerita minimal 20 karakter.'); return; } s.title = t; s.text = x; S.editStory = null; toast('Cerita diperbarui. Tag tetap sama.'); rerender(); },
+  saveResi(id) { const o = findOrder(id), v = (document.getElementById('resi') || {}).value || ''; if (v.trim().length < 6) { toast('Nomor resi minimal 6 karakter.'); return; } o.pickup.resi = v.trim(); o.history.push({ s:-1, extra:true, label:'Nomor resi ' + o.pickup.resi + ' disimpan', at:new Date() }); saveOrder(o); toast('Nomor resi disimpan.'); rerender(); },
+  editStory(id) { S.editStory = id || null; rerender(); },
+  saveStory(id) {
+    const s = S.stories.find(x => String(x.id) === String(id)); const t = document.getElementById('esTitle').value.trim(), x = document.getElementById('esText').value.trim();
+    if (t.length < 3 || x.length < 20) { toast('Judul minimal 3 karakter dan cerita minimal 20 karakter.'); return; }
+    s.title = t; s.text = x; S.editStory = null;
+    if (s.remote && FB.ok) FB.db.collection('stories').doc(String(s.id)).update({ title:t, text:x }).catch(dbErr);
+    const o = findOrder(s.order); if (o && o.story) { o.story.title = t; o.story.text = x; saveOrder(o); }
+    toast('Cerita diperbarui. Tag tetap sama.'); rerender();
+  },
   copyTag(id) { const url = location.href.split('#')[0] + '#tag-' + id; try { navigator.clipboard.writeText(url).then(() => toast('Tautan disalin.'), () => toast('Tidak bisa menyalin otomatis. Tautan: #tag-' + id)); } catch (e) { toast('Tidak bisa menyalin otomatis.'); } },
-  notifAll() { myNotifs().forEach(n => n.read = true); rerender(); },
-  notifOpen(i) { const n = S.notifs[+i]; n.read = true; go(n.go || 'dashboard'); },
+  notifAll() { myNotifs().forEach(n => { if (!n.read) { n.read = true; if (n.remote && FB.ok) FB.db.collection('notifs').doc(n._id).update({ read:true }).catch(dbErr); } }); rerender(); },
+  notifOpen(i) { const n = S.notifs[+i]; if (!n) return; if (!n.read) { n.read = true; if (n.remote && FB.ok) FB.db.collection('notifs').doc(n._id).update({ read:true }).catch(dbErr); } go(n.go || 'dashboard'); },
   onbNext() { if (S.onb < 3) { S.onb++; rerender(); } else go('dashboard'); },
   onbSkip() { go('dashboard'); },
   chat() { S.chat.open = !S.chat.open; renderChat(); if (S.chat.open) { const i = document.getElementById('chatin'); if (i) i.focus(); } },
@@ -1500,8 +1660,8 @@ const CH = {
   courier(t) { S.draft.pickup.courier = t.value; },
   agreeOk(t) { S.draft.agree.ok = t.checked; },
   aStatus(t) { S.aStatus = t.value; rerender(); },
-  kurir(t) { const o = findOrder(t.dataset.id); o.pickup.kurir = t.value; if (t.value) { notify(o, 'Kurir ' + t.value + ' akan menjemput kainmu ' + tglh(o.pickup.date) + ', ' + o.pickup.slot + '.', 'Truck', 'blue'); toast('Kurir ' + t.value + ' ditugaskan ke ' + o.id + '.'); } rerender(); },
-  prodOn(t) { S.prodOn[t.dataset.id] = t.checked; toast(PROD[t.dataset.id].name + (t.checked ? ' diaktifkan.' : ' dimatikan.')); },
+  kurir(t) { const o = findOrder(t.dataset.id); o.pickup.kurir = t.value; saveOrder(o); if (t.value) { notify(o, 'Kurir ' + t.value + ' akan menjemput kainmu ' + tglh(o.pickup.date) + ', ' + o.pickup.slot + '.', 'Truck', 'blue'); toast('Kurir ' + t.value + ' ditugaskan ke ' + o.id + '.'); } rerender(); },
+  prodOn(t) { const k = t.dataset.id; S.prodOn[k] = t.checked; if (isReal()) FB.db.collection('settings').doc('products').set({ [k]:t.checked }, { merge:true }).catch(dbErr); toast(PROD[k].name + (t.checked ? ' diaktifkan.' : ' dimatikan.') + (FB.ok && !isReal() ? ' Perubahan ini hanya di perangkat ini; masuk dengan akun asli untuk menyimpannya.' : '')); },
   crPhoto(t) { if (t.files && t.files[0]) toast('Foto progres "' + t.files[0].name + '" terunggah (simulasi).'); t.value = ''; }
 };
 function addFiles(files) {
@@ -1511,36 +1671,76 @@ function addFiles(files) {
     if (!/^image\//.test(f.type)) { bad = 'File "' + f.name + '" bukan gambar. Pakai JPG, PNG, atau WEBP.'; return; }
     if (f.size > 8 * 1024 * 1024) { bad = 'File "' + f.name + '" lebih dari 8 MB.'; return; }
     const ph = { name:f.name, src:'' }; d.photos.push(ph);
-    const r = new FileReader(); r.onload = () => { ph.src = r.result; if (flowIdx() === 0) rerender(); }; r.readAsDataURL(f);
+    const r = new FileReader(); r.onload = () => { compressImage(r.result, 640).then(u => { ph.src = u; if (flowIdx() === 0) rerender(); }); }; r.readAsDataURL(f);
   });
   S.err = bad; rerender();
 }
 const SUB = {
   login(f) {
-    const e = f.email.value.trim(), p = f.pw.value;
+    const e = f.email.value.trim(), p = f.pw.value, keep = !f.ingat || f.ingat.checked; S.loginEmail = e;
     if (!/^\S+@\S+\.\S+$/.test(e)) { S.err = 'Masukkan email yang valid.'; rerender(); return; }
     if (p.length < 6) { S.err = 'Kata sandi minimal 6 karakter.'; rerender(); return; }
     S.err = '';
-    S.user = e.toLowerCase() === DEMO.email ? Object.assign({}, DEMO) : { name:e.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), email:e.toLowerCase(), phone:'', address:'', demo:false };
-    toast('Selamat datang, ' + S.user.name.split(' ')[0] + '!'); const a = S.after; S.after = null; go(a || 'dashboard');
+    if (e.toLowerCase() === DEMO.email || !FB.ok) {
+      S.user = e.toLowerCase() === DEMO.email ? Object.assign({}, DEMO) : { name:e.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), email:e.toLowerCase(), phone:'', address:'', demo:true };
+      toast('Selamat datang, ' + S.user.name.split(' ')[0] + '!'); const a = S.after; S.after = null; go(a || 'dashboard'); return;
+    }
+    S.busy = true; rerender();
+    const P = firebase.auth.Auth && firebase.auth.Auth.Persistence;
+    Promise.resolve(P ? FB.auth.setPersistence(keep ? P.LOCAL : P.SESSION) : null).catch(() => {})
+      .then(() => FB.auth.signInWithEmailAndPassword(e, p))
+      .then(() => { S.busy = false; toast('Selamat datang kembali!'); })
+      .catch(err => { S.busy = false; S.err = authMsg(err); rerender(); });
   },
   register(f) {
-    const v = { nama:f.nama.value.trim(), email:f.email.value.trim(), hp:f.hp.value.trim(), setuju:f.setuju.checked }, E = {};
+    const v = { nama:f.nama.value.trim(), email:f.email.value.trim(), hp:f.hp.value.trim(), setuju:f.setuju.checked }, E = {}, pw = f.pw.value;
     if (v.nama.length < 3) E.nama = 'Nama minimal 3 huruf.';
     if (!/^\S+@\S+\.\S+$/.test(v.email)) E.email = 'Format email belum benar.';
-    else if (v.email.toLowerCase() === DEMO.email) E.email = 'Email ini sudah terdaftar. Silakan masuk.';
+    else if (v.email.toLowerCase() === DEMO.email) E.email = 'Email ini dipakai akun demo. Pakai email lain.';
     if (!/^[0-9+\-\s]{9,16}$/.test(v.hp)) E.hp = 'Nomor HP 9–16 angka.';
-    if (f.pw.value.length < 6) E.pw = 'Kata sandi minimal 6 karakter.';
-    if (f.pw2.value !== f.pw.value || !f.pw2.value) E.pw2 = 'Kata sandi tidak sama.';
+    if (pw.length < 6) E.pw = 'Kata sandi minimal 6 karakter.';
+    if (f.pw2.value !== pw || !f.pw2.value) E.pw2 = 'Kata sandi tidak sama.';
     if (!v.setuju) E.setuju = 'Kamu perlu menyetujui syarat layanan.';
     S.regErr = E; S.regVal = v;
     if (Object.keys(E).length) { rerender(); return; }
-    S.user = { name:v.nama, email:v.email.toLowerCase(), phone:v.hp, address:'', demo:false }; S.regErr = null; S.regVal = null; S.onb = 0;
-    toast('Akun berhasil dibuat.'); go('mulai');
+    if (!FB.ok) {
+      S.user = { name:v.nama, email:v.email.toLowerCase(), phone:v.hp, address:'', demo:true }; S.regErr = null; S.regVal = null; S.onb = 0;
+      toast('Akun berhasil dibuat.'); go('mulai'); return;
+    }
+    S.busy = true; S.pendingProfile = { name:v.nama, phone:v.hp }; S.after = 'mulai'; S.onb = 0; rerender();
+    FB.auth.createUserWithEmailAndPassword(v.email, pw).then(cred => {
+      const u = cred.user;
+      u.updateProfile({ displayName:v.nama }).catch(() => {});
+      FB.db.collection('users').doc(u.uid).set({ name:v.nama, email:v.email.toLowerCase(), phone:v.hp, address:'', createdAt:Date.now() }, { merge:true }).catch(dbErr);
+      S.busy = false; S.regErr = null; S.regVal = null;
+      if (S.user) { S.user.name = v.nama; S.user.phone = v.hp; }
+      toast('Akun berhasil dibuat.');
+      if (location.hash.slice(1) !== 'mulai') go('mulai');
+    }).catch(err => {
+      S.busy = false; S.after = null; const msg = authMsg(err), c = (err && err.code) || '';
+      S.regErr = /email/.test(c) ? { email:msg } : /password/.test(c) ? { pw:msg } : { umum:msg };
+      rerender();
+    });
   },
-  forgot(f) { if (!/^\S+@\S+\.\S+$/.test(f.email.value.trim())) { S.err = 'Masukkan email yang valid.'; rerender(); return; } S.err = ''; S.forgotSent = true; rerender(); },
+  forgot(f) {
+    const e = f.email.value.trim(); S.loginEmail = e;
+    if (!/^\S+@\S+\.\S+$/.test(e)) { S.err = 'Masukkan email yang valid.'; rerender(); return; }
+    const done = () => { S.busy = false; S.err = ''; S.forgotSent = true; rerender(); };
+    if (!FB.ok) { done(); return; }
+    S.busy = true; rerender();
+    FB.auth.sendPasswordResetEmail(e).then(done, err => { if (err && err.code === 'auth/user-not-found') done(); else { S.busy = false; S.err = authMsg(err); rerender(); } });
+  },
+  profile(f) {
+    const box = document.getElementById('perr'); if (f.name.value.trim().length < 3) { box.innerHTML = '<div class="errbox">Nama minimal 3 huruf.</div>'; return; }
+    Object.assign(S.user, { name:f.name.value.trim(), phone:f.phone.value.trim(), address:f.address.value.trim() });
+    if (isReal()) {
+      FB.db.collection('users').doc(S.user.uid).set({ name:S.user.name, phone:S.user.phone, address:S.user.address }, { merge:true }).catch(dbErr);
+      if (FB.auth.currentUser) FB.auth.currentUser.updateProfile({ displayName:S.user.name }).catch(() => {});
+    }
+    S.orders.filter(o => o.email === S.user.email).forEach(o => { if (o.customer !== S.user.name) { o.customer = S.user.name; saveOrder(o); } });
+    toast(isReal() ? 'Profil disimpan ke database.' : 'Profil disimpan.'); rerender();
+  },
   contact(f) { const box = document.getElementById('cerr'); if (f.nama.value.trim().length < 2 || !/^\S+@\S+\.\S+$/.test(f.email.value.trim()) || f.pesan.value.trim().length < 10) { box.innerHTML = '<div class="errbox">Isi nama, email yang valid, dan pesan minimal 10 karakter.</div>'; return; } box.innerHTML = '<div class="okbox">Pesanmu tercatat di prototipe ini. Di versi asli, tim ReCraft akan membalas lewat email.</div>'; f.pesan.value = ''; },
-  profile(f) { const box = document.getElementById('perr'); if (f.name.value.trim().length < 3) { box.innerHTML = '<div class="errbox">Nama minimal 3 huruf.</div>'; return; } Object.assign(S.user, { name:f.name.value.trim(), phone:f.phone.value.trim(), address:f.address.value.trim() }); S.orders.filter(o => o.email === S.user.email).forEach(o => o.customer = S.user.name); toast('Profil disimpan.'); rerender(); },
   chat(f) { chatSay(f.m.value); }
 };
 
@@ -1548,9 +1748,9 @@ const SUB = {
 const ROUTES = [
   ['beranda', vHome], ['cara-kerja', vHow], ['jelajahi', vExplore], [/^produk-([a-z]+)$/, vProduct], ['tentang', vAbout], ['faq', vFaq], ['bantuan', vHelp],
   ['masuk', vLogin], ['daftar', vRegister], ['lupa-sandi', vForgot],
-  ['mulai', vOnboard, 1], ['dashboard', vDash, 1], [/^buat-[a-z]+$/, vFlow, 1], [/^berhasil-(RC-[\d-]+)$/, vSuccess, 1],
-  ['pesanan', vOrders, 1], [/^pesanan-(RC-[\d-]+)$/, vOrder, 1], [/^lacak-(RC-[\d-]+)$/, vTrack, 1],
-  ['cerita-saya', vStories, 1], [/^cerita-(\d+)$/, vStory, 1], [/^tag-(\d+)$/, vTag], ['profil', vProfile, 1], ['notifikasi', vNotif, 1],
+  ['mulai', vOnboard, 1], ['dashboard', vDash, 1], [/^buat-[a-z]+$/, vFlow, 1], [/^berhasil-(RC-[\w-]+)$/, vSuccess, 1],
+  ['pesanan', vOrders, 1], [/^pesanan-(RC-[\w-]+)$/, vOrder, 1], [/^lacak-(RC-[\w-]+)$/, vTrack, 1],
+  ['cerita-saya', vStories, 1], [/^cerita-([\w-]+)$/, vStory, 1], [/^tag-([\w-]+)$/, vTag], ['profil', vProfile, 1], ['notifikasi', vNotif, 1],
   ['crafter', vCrafter], ['admin', vAdmin]
 ];
 const TITLES = { beranda:'Beranda', 'cara-kerja':'Cara Kerja', jelajahi:'Jelajahi', tentang:'Tentang', faq:'FAQ', bantuan:'Bantuan', masuk:'Masuk', daftar:'Daftar', dashboard:'Dashboard', pesanan:'Pesanan Saya', 'cerita-saya':'Cerita Saya', profil:'Profil', notifikasi:'Notifikasi', crafter:'Crafter', admin:'Admin' };
@@ -1563,9 +1763,12 @@ function render(keep) {
   let view = null, m = null, auth = 0;
   for (const r of ROUTES) { m = null; if (typeof r[0] === 'string' ? r[0] === h : (m = h.match(r[0]))) { view = r[1]; auth = r[2] || 0; break; } }
   if (!view) { go('beranda'); return; }
-  if (auth && !S.user) { S.after = h; go('masuk'); return; }
-  if ((h === 'masuk' || h === 'daftar') && S.user) { go('dashboard'); return; }
   S.role = h === 'crafter' ? 'crafter' : h === 'admin' ? 'admin' : 'pelanggan';
+  if (auth && !S.user) {
+    if (!S.authReady) { lastHash = h; app.innerHTML = `<section class="wrap band"><div class="card dash empty"><div class="tile bg-orange">${ic('User', 28)}</div><p class="b">Memuat akunmu…</p></div></section>`; renderChrome(h); return; }
+    S.after = h; go('masuk'); return;
+  }
+  if ((h === 'masuk' || h === 'daftar') && S.user && !S.busy) { const a = S.after; S.after = null; go(a || 'dashboard'); return; }
   const y = window.scrollY, same = h === lastHash;
   hooks = [];
   const html = view(m, h);
@@ -1611,6 +1814,11 @@ document.addEventListener('change', e => { const t = e.target; if (t.dataset && 
 document.addEventListener('submit', e => { const f = e.target; if (f.dataset && f.dataset.sub && SUB[f.dataset.sub]) { e.preventDefault(); SUB[f.dataset.sub](f); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.chat.open) { S.chat.open = false; renderChat(); } });
 window.addEventListener('hashchange', () => render());
+if (FB.ok) {
+  FB.auth.onAuthStateChanged(onAuth, e => { dbErr(e); S.authReady = true; render(true); });
+  FB.db.collection('settings').doc('products').onSnapshot(d => { if (d.exists) { Object.assign(S.prodOn, d.data()); refresh(); } }, () => {});
+  setTimeout(() => { if (!S.authReady) { S.authReady = true; render(true); } }, 6000);
+}
 render();
 }
 </script>
