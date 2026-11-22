@@ -6,7 +6,7 @@
 <title>ReCraft · Setiap Kain Punya Cerita</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&family=Great+Vibes&family=Allura&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
 <style>
 /* VOICE: hangat, buatan tangan, ramah, seperti toko kerajinan lokal yang rapi
    IDEA: kain perca yang dijahit: jahitan putus-putus, tambalan warna, label kain, bayangan geser
@@ -101,6 +101,21 @@ p{margin:0}
 .btn-ghost{border-color:transparent;background:transparent}
 .btn-ghost:hover{background:var(--s-orange)}
 .btn-sm{min-height:40px;padding:0 16px;font-size:14px}
+.btn-wa{background:#25D366;color:#0B3D1F;border-color:#0B3D1F;box-shadow:3px 3px 0 #0B3D1F}
+.btn-wa:hover{box-shadow:5px 5px 0 #0B3D1F}
+.layout{background:var(--cream);border-radius:var(--r-l);overflow:hidden}
+.emb{border:2px solid var(--dark);border-radius:16px;overflow:hidden;background:var(--white)}
+.chip small.dim{color:var(--dark);font-weight:700}
+.layout.drag svg{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.layout.drag svg:active{cursor:grabbing}
+.layout .selpart{stroke:#B23F72;stroke-width:5;stroke-dasharray:9 6}
+.fabchip{position:relative;width:48px;height:48px;border-radius:12px;border:2px solid var(--border);padding:0;overflow:hidden;cursor:pointer;background:var(--white)}
+.fabchip img{width:100%;height:100%;object-fit:cover}
+.fabchip span{position:absolute;right:2px;bottom:2px;background:var(--dark);color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:0 5px}
+.fabchip[aria-pressed=true]{border-color:var(--dark);box-shadow:3px 3px 0 var(--dark)}
+.mpanel{padding:16px 20px;border-top:2px dashed var(--border);background:var(--white)}
+.slider{display:grid;grid-template-columns:56px minmax(0,1fr) 46px;gap:10px;align-items:center;min-height:36px}
+.slider input{width:100%;accent-color:var(--dark);height:28px}
 .btn-block{width:100%}
 .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
 .linkbtn{background:none;border:0;padding:0;color:var(--i-purple);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
@@ -386,7 +401,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
-<div class="proto"><div class="wrap"><span><b>Prototipe ReCraft</b> · versi 1.1<span class="dbpill" id="dbstat"></span></span><div class="row g8"><span>Lihat sebagai</span><div class="seg" id="seg" role="group" aria-label="Lihat sebagai"><button data-act="role" data-arg="pelanggan" aria-pressed="true">Pelanggan</button><button data-act="role" data-arg="crafter" aria-pressed="false">Crafter</button><button data-act="role" data-arg="admin" aria-pressed="false">Admin</button></div></div></div></div>
+<div class="proto"><div class="wrap"><span><b>Prototipe ReCraft</b> · versi 1.2<span class="dbpill" id="dbstat"></span></span><div class="row g8"><span>Lihat sebagai</span><div class="seg" id="seg" role="group" aria-label="Lihat sebagai"><button data-act="role" data-arg="pelanggan" aria-pressed="true">Pelanggan</button><button data-act="role" data-arg="crafter" aria-pressed="false">Crafter</button><button data-act="role" data-arg="admin" aria-pressed="false">Admin</button></div></div></div></div>
 <header class="top" id="hdr"></header>
 <main id="app"></main>
 <footer id="ftr"></footer>
@@ -426,6 +441,9 @@ const ICON = {
   Close:'<path d="M6 6l12 12M18 6L6 18"/>',
   ChevronRight:'<path d="M9 6l6 6-6 6"/>',
   ChevronLeft:'<path d="M15 6l-6 6 6 6"/>',
+  ChevronUp:'<path d="M6 15l6-6 6 6"/>',
+  ChevronDown:'<path d="M6 9l6 6 6-6"/>',
+  Move:'<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>',
   ArrowRight:'<path d="M5 12h14M13 6l6 6-6 6"/>',
   ArrowLeft:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
   Upload:'<path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
@@ -515,43 +533,53 @@ const CATS = ['Semua', 'Tas', 'Aksesori', 'Boneka', 'Custom'];
 
 const OPTS = {
   tote: [
-    ['ukuran','Ukuran',[['Kecil',0],['Sedang',8000],['Besar',15000]],1],
+    ['ukuran','Ukuran',[['Kecil',0,'30 × 35 cm'],['Sedang',8000,'38 × 40 cm'],['Besar',15000,'45 × 45 cm']],1],
     ['bentuk','Bentuk',[['Klasik',0],['Lebar',0],['Bucket',5000]],0],
-    ['tali','Tali',[['Pendek',0],['Panjang',3000]],1],
-    ['saku','Saku',[['Tanpa saku',0],['Saku dalam',4000],['Saku luar',6000]],2],
-    ['susunan','Susunan kain',[['Patchwork',6000],['Minimalis',0],['Fokus kain asli',0]],0],
-    ['dekorasi','Dekorasi',[['Tanpa',0],['Bordir',12000],['Patch',8000]],1]
+    ['tali','Tali',[['Pendek',0,'45 cm'],['Panjang',3000,'60 cm']],1],
+    ['saku','Saku',[['Tanpa saku',0],['Saku dalam',4000],['Saku luar',6000,'15 × 12 cm']],2]
   ],
   pouch: [
-    ['ukuran','Ukuran',[['Kecil',0],['Sedang',5000],['Besar',9000]],1],
+    ['ukuran','Ukuran',[['Kecil',0,'15 × 10 cm'],['Sedang',5000,'20 × 13 cm'],['Besar',9000,'25 × 16 cm']],1],
     ['lapisan','Lapisan dalam',[['Tanpa lapisan',0],['Lapisan katun',5000]],1],
-    ['tarikan','Tarikan ritsleting',[['Pita kain',0],['Logam',3000]],0],
-    ['susunan','Susunan kain',[['Patchwork',6000],['Minimalis',0],['Fokus kain asli',0]],0],
-    ['dekorasi','Dekorasi',[['Tanpa',0],['Bordir',12000],['Patch',8000]],0]
+    ['tarikan','Tarikan ritsleting',[['Pita kain',0],['Logam',3000]],0]
   ],
   scrunchie: [
     ['jumlah','Jumlah',[['1 buah',0],['Set 3 buah',25000],['Set 5 buah',50000]],1],
-    ['ukuran','Ukuran',[['Mini',0],['Reguler',0],['Besar',3000]],1],
-    ['susunan','Kain',[['Satu kain',0],['Campur kain',2000]],1]
+    ['ukuran','Ukuran',[['Mini',0,'8 × 2,5 cm'],['Reguler',0,'10 × 4 cm'],['Besar',3000,'12 × 6 cm']],1]
   ],
   boneka: [
     ['bentuk','Bentuk',[['Beruang',0],['Kelinci',0],['Boneka orang',8000]],0],
-    ['tinggi','Tinggi',[['20 cm',0],['25 cm',10000],['35 cm',25000]],1],
-    ['aksesori','Aksesori',[['Tanpa',0],['Dasi kupu-kupu',5000],['Syal',7000]],1],
-    ['susunan','Susunan kain',[['Patchwork',6000],['Satu kain',0]],0]
+    ['tinggi','Ukuran',[['Kecil',0,'14 × 20 cm'],['Sedang',10000,'17 × 25 cm'],['Besar',25000,'23 × 35 cm']],1],
+    ['aksesori','Aksesori',[['Tanpa',0],['Dasi kupu-kupu',5000],['Syal',7000]],1]
   ],
   custom: [
     ['jenis','Jenis barang',[['Tas atau dompet',0],['Dekorasi',0],['Aksesori',0],['Lainnya',0]],0],
-    ['ukuran','Perkiraan ukuran',[['Kecil',0],['Sedang',15000],['Besar',35000]],1]
+    ['ukuran','Perkiraan ukuran',[['Kecil',0,'maks. 20 × 20 cm'],['Sedang',15000,'maks. 35 × 35 cm'],['Besar',35000,'maks. 50 × 50 cm']],1]
   ]
 };
 const TEXT_OK = { tote:true, pouch:true, boneka:true, custom:false, scrunchie:false };
 const SIZE_KEY = { tote:'ukuran', pouch:'ukuran', scrunchie:'ukuran', boneka:'tinggi', custom:'ukuran' };
-const TAGS = {
-  qr:['QR Code', 10000, 'Label kain berkode QR. Bisa dipindai pakai kamera HP mana pun.'],
-  nfc:['NFC Tag', 20000, 'Chip NFC tersembunyi di dalam label. Cukup tempelkan HP yang mendukung NFC.'],
-  qrnfc:['QR + NFC', 25000, 'Dua-duanya sekaligus. Paling praktis untuk dibagikan ke keluarga.']
+const SIZE_AXIS = { tote:'lebar × tinggi', pouch:'lebar × tinggi', scrunchie:'diameter × lebar kain', boneka:'lebar × tinggi', custom:'lebar × tinggi' };
+const TAG_PRICE = 10000;
+const TAGS = { qr:['Memory Tag', TAG_PRICE, 'Label kain berkode QR yang dijahit di produkmu. Pindai dengan kamera HP untuk membuka foto sebelum, foto sesudah, dan ceritamu.'] };
+TAGS.nfc = TAGS.qrnfc = TAGS.qr;
+const MOTIFS = [
+  ['asli', 'Dari bajumu', 0], ['polos', 'Polos', 0], ['kotak', 'Kotak-kotak', 5000], ['garis', 'Garis', 5000],
+  ['bunga', 'Bunga kecil', 5000], ['polkadot', 'Polkadot', 5000], ['batik', 'Batik parang', 8000]
+];
+const MOTIF = Object.fromEntries(MOTIFS.map(m => [m[0], { key:m[0], name:m[1], price:m[2] }]));
+const PARTS = {
+  tote:[['saku','Saku'],['tali','Tali'],['alas','Alas bawah'],['badan','Badan']],
+  pouch:[['atas','Panel atas'],['bawah','Panel bawah'],['tarikan','Tarikan ritsleting'],['badan','Badan']],
+  scrunchie:[['selang','Selang-seling']],
+  boneka:[['telinga','Telinga'],['kaki','Kaki'],['aksesori','Aksesori'],['kepala','Kepala'],['badan','Badan']],
+  custom:[['aksen','Bagian aksen']]
 };
+const DEF_PARTS = { tote:[], pouch:[], scrunchie:[], boneka:[], custom:[] };
+const THREADS = { putih:['Putih','#FFFFFF'], hitam:['Hitam','#302D3D'], merah:['Merah','#C93C3C'], emas:['Kuning emas','#D4A72C'], navy:['Biru navy','#2A3F6B'], pink:['Pink','#E07AA5'], hijau:['Hijau','#23865A'] };
+const FONTS = { greatvibes:['Great Vibes', '"Great Vibes",cursive', 400, 1.55], allura:['Allura', 'Allura,cursive', 400, 1.6], dancing:['Dancing Script', '"Dancing Script",cursive', 600, 1.2] };
+const EMB_POS = { tote:[['depan','Depan tengah'],['saku','Di saku'],['bawah','Pojok bawah']], pouch:[['depan','Depan tengah'],['pojok','Pojok kanan bawah']], boneka:[['dada','Dada'],['kaki','Telapak kaki']] };
+const ADMIN_WA = '6282248806205';
 const PICK = {
   jemput:['ReCraft Pickup', 10000, 'Kurir ReCraft menjemput kain ke rumahmu sesuai jadwal.', 'Truck'],
   antar:['Antar ke studio', 0, 'Bawa sendiri kainmu ke Studio ReCraft.', 'Store'],
@@ -560,11 +588,6 @@ const PICK = {
 const SLOTS = ['09.00–12.00', '13.00–16.00', '16.00–19.00'];
 const STUDIO = 'Studio ReCraft, Jl. Kain Cerita No. 12, Bandung';
 const KURIR = ['Andi', 'Budi', 'Citra'];
-const PAY = {
-  transfer:['Transfer bank (Virtual Account)', ['BCA','BNI','Mandiri','BRI']],
-  ewallet:['E-wallet', ['GoPay','OVO','DANA','ShopeePay']],
-  kartu:['Kartu debit atau kredit', ['Visa','Mastercard']]
-};
 const GARMENTS = { 'Kemeja':[1.2,'Shirt'], 'Kaos':[0.9,'TShirt'], 'Celana jeans':[1.1,'Jeans'], 'Gaun':[1.6,'Dress'], 'Batik':[1.3,'Shirt'], 'Kebaya':[1.0,'Dress'], 'Jaket':[1.5,'Jacket'], 'Seragam sekolah':[1.0,'Shirt'] };
 const MATS = ['Katun','Denim','Linen','Batik katun','Flanel','Polyester','Tidak tahu'];
 const MAT_NOTE = { 'Katun':'Mudah dijahit dan cocok untuk semua produk.', 'Denim':'Tebal dan kuat, bagus untuk tote dan pouch.', 'Linen':'Ringan dan bertekstur, cocok untuk tote dan scrunchie.', 'Batik katun':'Motifnya akan ditata supaya tetap terlihat utuh.', 'Flanel':'Hangat dan lembut, cocok untuk boneka dan pouch.', 'Polyester':'Agak licin, crafter akan menambah lapisan supaya rapi.', 'Tidak tahu':'Crafter akan memeriksa jenis bahannya saat kain tiba.' };
@@ -575,8 +598,8 @@ const STEP_NAMES = ['Pesanan dikonfirmasi', '', 'Kain diterima', 'Desain dikonfi
 const STEP_DESC = ['Pesanan diterima dan crafter sudah ditugaskan.', '', 'Kain sudah sampai di studio dan diperiksa.', 'Crafter mencocokkan desain dengan kain asli.', 'Kain sedang dipotong dan dijahit dengan tangan.', 'Jahitan, kerapian, dan Memory Tag diperiksa. Foto hasil akhir dikirim untuk kamu setujui.', 'Paket dalam perjalanan bersama kurir.', 'ReCraft-mu sudah sampai.'];
 const stepName = (o, s) => s === 1 ? ({ jemput:'Kain dijemput kurir', antar:'Kain diantar ke studio', kirim:'Paket kain dikirim' })[o.pickup.method] : STEP_NAMES[s];
 const stepDesc = (o, s) => s === 1 ? ({ jemput:'Kurir ReCraft sudah menjemput kain dari alamatmu.', antar:'Kain sudah kamu serahkan di studio.', kirim:'Paket kain sedang dalam perjalanan ke studio.' })[o.pickup.method] : STEP_DESC[s];
-const BADGE = { 'Dikonfirmasi':'soft-purple', 'Menunggu kain':'soft-yellow', 'Produksi':'soft-orange', 'Quality check':'soft-pink', 'Dikirim':'soft-blue', 'Diterima':'soft-tq', 'Dibatalkan':'soft-grey' };
-const statusOf = o => o.cancelled ? 'Dibatalkan' : o.step === 0 ? 'Menunggu kain' : o.step === 1 ? 'Dikonfirmasi' : o.step <= 4 ? 'Produksi' : o.step === 5 ? 'Quality check' : o.step === 6 ? 'Dikirim' : 'Diterima';
+const BADGE = { 'Menunggu bayar':'soft-orange', 'Dikonfirmasi':'soft-purple', 'Menunggu kain':'soft-yellow', 'Produksi':'soft-orange', 'Quality check':'soft-pink', 'Dikirim':'soft-blue', 'Diterima':'soft-tq', 'Dibatalkan':'soft-grey' };
+const statusOf = o => o.cancelled ? 'Dibatalkan' : o.pay === 'menunggu' ? 'Menunggu bayar' : o.step === 0 ? 'Menunggu kain' : o.step === 1 ? 'Dikonfirmasi' : o.step <= 4 ? 'Produksi' : o.step === 5 ? 'Quality check' : o.step === 6 ? 'Dikirim' : 'Diterima';
 const badge = o => { const s = statusOf(o); return `<span class="badge ${BADGE[s]}">${s}</span>`; };
 
 /* ---------- state ---------- */
@@ -594,16 +617,17 @@ const S = {
 function defOpts(k) { const o = {}; (OPTS[k] || []).forEach(x => o[x[0]] = x[3]); return o; }
 function newDraft(prod) {
   const k = prod || 'tote';
-  return { photos:[], garment:'Kemeja', material:'Katun', cond:'Bagus', count:1, product:k, opts:defOpts(k), accent:'orange', text:'', custom:'',
-    story:{ title:'', year:'', moment:'', text:'', privacy:'pribadi' }, tag:'qr',
+  return { photos:[], garment:'Kemeja', material:'Katun', cond:'Bagus', count:1, product:k, opts:defOpts(k), accent:'orange', text:'', custom:'', customW:'', customH:'',
+    motif:{ utama:'asli', aksen:'asli', parts:[], note:'', pos:{}, sel:'badan', src:{} }, embFont:'greatvibes', embColor:'putih', embPos:(EMB_POS[k] || [['depan']])[0][0], stageTab:'desain',
+    story:{ title:'', year:'', moment:'', text:'', privacy:'pribadi' }, tag:'qr', tagLabel:'',
     pickup:{ method:'jemput', date:null, slot:'', address:(S.user && S.user.address) || '', note:'', courier:'' },
     agree:{ mode:'gambar', strokes:[], typed:'', ok:false, leftover:'kembalikan', signed:false, sig:null, at:null },
-    pay:'transfer', payWith:'BCA', reached:0 };
+    reached:0 };
 }
 S.draft = newDraft();
 
 function mkOrder(o) {
-  const d = Object.assign({ cancelled:false, qc:'none', revUsed:false, revNote:'', accent:'orange', text:'', tag:'qr', garment:'Kemeja', material:'Katun', opts:defOpts(o.product), crafter:'Bu Ratna', history:[], before:'kemeja', story:null, agreement:null, pickup:{ method:'jemput' } }, o);
+  const d = Object.assign({ pay:'lunas', motif:{ utama:'asli', aksen:'asli', parts:[], note:'', pos:{}, src:{} }, embFont:'greatvibes', embColor:'putih', cancelled:false, qc:'none', revUsed:false, revNote:'', accent:'orange', text:'', tag:'qr', garment:'Kemeja', material:'Katun', opts:defOpts(o.product), crafter:'Bu Ratna', history:[], before:'kemeja', story:null, agreement:null, pickup:{ method:'jemput' } }, o);
   d.pickup = Object.assign({ method:'jemput', date:addDays(d.date, 1), slot:SLOTS[0], address:'-', kurir:'', resi:'' }, d.pickup);
   if (d.pickup.date.getDay() === 0) d.pickup.date = addDays(d.pickup.date, 1);
   const span = Math.max(0, (TODAY - d.date) / 864e5 - 0.5), gap = d.step ? Math.min(1.4, span / d.step) : 0;
@@ -615,7 +639,7 @@ function mkOrder(o) {
 }
 const R = DEMO.email;
 S.localOrders = [
-  mkOrder({ id:'RC-2026-0087', name:'Tote Wisuda', product:'tote', customer:DEMO.name, email:R, date:addDays(TODAY, -6), total:84000, step:5, accent:'yellow', text:'SMA 3 · 24', tag:'qrnfc', garment:'Kemeja', pickup:{ method:'jemput', address:DEMO.address, kurir:'Andi', slot:SLOTS[0] },
+  mkOrder({ id:'RC-2026-0087', name:'Tote Wisuda', product:'tote', customer:DEMO.name, email:R, date:addDays(TODAY, -6), total:84000, step:5, accent:'yellow', text:'SMA 3 · 24', tag:'qr', garment:'Kemeja', pickup:{ method:'jemput', address:DEMO.address, kurir:'Andi', slot:SLOTS[0] },
     story:{ title:'Hari Terakhir SMA', year:'2024', moment:'Wisuda', text:'Kemeja ini aku pakai di hari kelulusan SMA. Semua teman sekelas menandatanganinya.', privacy:'pribadi' },
     agreement:{ name:DEMO.name, at:addDays(TODAY, -6), typed:'Rauda N. A.', sig:null, leftover:'kembalikan' } }),
   mkOrder({ id:'RC-2026-0064', name:'Pouch Batik Mama', product:'pouch', customer:DEMO.name, email:R, date:new Date(2026, 7, 2), total:52000, step:7, accent:'purple', garment:'Batik', material:'Batik katun', before:'Dress', pickup:{ method:'antar' } }),
@@ -631,7 +655,7 @@ S.localOrders = [
   mkOrder({ id:'RC-2026-0071', name:'Tote Denim', product:'tote', customer:'Yoga Pratama', email:'yoga@contoh.id', date:addDays(TODAY, -21), total:64000, step:0, cancelled:true, garment:'Celana jeans', material:'Denim', before:'Jeans' })
 ];
 S.localStories = [
-  { id:'1', owner:R, order:'RC-2026-0087', title:'Hari Terakhir SMA', product:'tote', from:'Kemeja wisuda', year:'2024', moment:'Wisuda', before:'kemeja', tag:'qrnfc', privacy:'pribadi', text:'Kemeja ini aku pakai di hari kelulusan SMA. Semua teman sekelas menandatanganinya. Sekarang jadi tote yang aku bawa ke kampus tiap hari.', pending:true },
+  { id:'1', owner:R, order:'RC-2026-0087', title:'Hari Terakhir SMA', product:'tote', from:'Kemeja wisuda', year:'2024', moment:'Wisuda', before:'kemeja', tag:'qr', privacy:'pribadi', text:'Kemeja ini aku pakai di hari kelulusan SMA. Semua teman sekelas menandatanganinya. Sekarang jadi tote yang aku bawa ke kampus tiap hari.', pending:true },
   { id:'2', owner:R, order:'RC-2026-0064', title:'Batik Mama', product:'pouch', from:'Gaun batik', year:'1998', moment:'Keluarga', before:'Dress', tag:'qr', privacy:'pribadi', text:'Mama memakai batik ini saat lamaran. Sekarang batiknya ikut ke mana pun aku pergi, di dalam tas.' },
   { id:'3', owner:R, order:'RC-2026-0041', title:'Jeans Akhir Pekan', product:'scrunchie', from:'Jeans lama', year:'2019', moment:'Persahabatan', before:'Jeans', tag:'qr', privacy:'publik', text:'Jeans yang selalu ikut tiap akhir pekan ke Lembang. Satu scrunchie untuk masing-masing dari kami.' }
 ];
@@ -652,13 +676,13 @@ function ago(d) { const m = Math.round((Date.now() - d) / 60000); if (m < 1) ret
 /* ---------- small renderers ---------- */
 const prodImg = (key, alt) => { const p = PROD[key]; return p && p.photo ? `<img src="${PH[p.photo]}" alt="${esc(alt || p.name)}" loading="lazy">` : ill('Custom', 's-blue'); };
 const beforeImg = (b, alt) => { if (!b) return ill('Shirt'); if (b.startsWith('data:')) return `<img src="${b}" alt="${esc(alt || 'Foto baju sebelum')}">`; if (PH[b]) return `<img src="${PH[b]}" alt="${esc(alt || 'Foto baju sebelum')}">`; return ill(b, 's-blue'); };
-const optSummary = (k, opts) => (OPTS[k] || []).map(x => x[2][opts[x[0]]] ? x[2][opts[x[0]]][0] : '').filter(Boolean).join(' · ');
+const optLabel = c => c ? c[0] + (c[2] ? ' (' + c[2] + ')' : '') : '';
+const optSummary = (k, opts) => (OPTS[k] || []).map(x => optLabel(x[2][opts[x[0]]])).filter(Boolean).join(' · ');
 function tagVisual(type, title, seed) {
-  const showQ = type !== 'nfc', showN = type !== 'qr';
   return `<div class="mtag"><div class="mtag-hole"></div><div class="mtag-brand">ReCraft · Memory Tag</div>
-    <div class="mtag-code">${showQ ? qr(seed || 'recraft', showN ? 82 : 110) : ''}${showN ? `<div class="nfcmark" style="${showQ ? 'width:70px;height:70px' : ''}">${ic('Nfc', showQ ? 30 : 40)}</div>` : ''}</div>
-    <div class="mtag-title">${esc(title || 'Ceritamu')}</div>
-    <div class="mtag-hint">${type === 'qr' ? 'Pindai untuk membuka cerita' : type === 'nfc' ? 'Tempelkan HP untuk membuka cerita' : 'Pindai atau tempelkan HP'}</div></div>`;
+    <div class="mtag-code">${qr(seed || 'recraft', 110)}</div>
+    <div class="mtag-title" id="mtagTitle">${esc(title || 'Ceritamu')}</div>
+    <div class="mtag-hint">Pindai untuk membuka cerita</div></div>`;
 }
 const quilt = () => `<div class="quilt">${['pink','purple','blue','tq','orange','yellow','pink','purple','blue','tq','orange','yellow'].map(c => `<i style="background:var(--${c})"></i>`).join('')}</div>`;
 const empty = (icon, color, title, text, btnHtml) => `<div class="empty card dash"><div class="tile bg-${color}">${ic(icon, 30)}</div><h3 class="h3">${title}</h3><p class="muted">${text}</p>${btnHtml || ''}</div>`;
@@ -667,11 +691,13 @@ const miniTl = o => `<div class="mini-tl" aria-hidden="true">${[0,1,2,3,4,5,6,7]
 
 function priceOf(d) {
   const p = PROD[d.product], lines = [[p.name + (p.key === 'custom' ? ' (estimasi awal)' : ''), p.base]];
-  (OPTS[d.product] || []).forEach(([k, lab, ch]) => { const c = ch[d.opts[k]]; if (c && c[1]) lines.push([lab + ': ' + c[0], c[1]]); });
+  (OPTS[d.product] || []).forEach(([k, lab, ch]) => { const c = ch[d.opts[k]]; if (c && c[1]) lines.push([lab + ': ' + optLabel(c), c[1]]); });
+  const m = Object.assign({ utama:'asli', aksen:'polos', parts:[] }, d.motif || {});
+  if (MOTIF[m.utama] && MOTIF[m.utama].price) lines.push(['Motif utama: ' + MOTIF[m.utama].name, MOTIF[m.utama].price]);
+  if ((m.parts || []).length && MOTIF[m.aksen] && MOTIF[m.aksen].price) lines.push(['Motif aksen: ' + MOTIF[m.aksen].name, MOTIF[m.aksen].price]);
   if (TEXT_OK[d.product] && d.text.trim()) lines.push(['Teks bordir', 10000]);
   const productTotal = lines.reduce((s, l) => s + l[1], 0);
-  const extra = [];
-  if (d.tag) extra.push(['Memory Tag: ' + TAGS[d.tag][0], TAGS[d.tag][1]]);
+  const extra = [['Memory Tag', TAG_PRICE]];
   if (d.pickup.method === 'jemput') extra.push(['ReCraft Pickup', PICK.jemput[1]]);
   const all = lines.concat(extra);
   return { lines, extra, all, productTotal, total:all.reduce((s, l) => s + l[1], 0) };
@@ -680,7 +706,7 @@ function fabricOf(d) { const g = GARMENTS[d.garment]; return Math.round(g[0] * d
 const m2 = x => x.toFixed(2).replace('.', ',') + ' m²';
 const pickupDays = () => [1,2,3,4,5,6,7].map(i => addDays(TODAY, i)).filter(d => d.getDay() !== 0);
 
-/* ---------- Firebase (versi 1.1) ---------- */
+/* ---------- Firebase ---------- */
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyCDXUNfGxGESKqT5AFpNTKHRZ_jXiPW4gM',
   authDomain: 'recraft-3424c.firebaseapp.com',
@@ -785,6 +811,200 @@ function compressImage(dataUrl, max) {
 const draftCode = () => isReal() ? 'Dibuat setelah pembayaran' : 'RC-2026-L' + S.seq;
 rebuild();
 
+/* ---------- desain: ukuran, motif, bordir, WhatsApp (versi 1.2) ---------- */
+function hexMix(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const x = p(a), y = p(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+const photoOf = b => !b ? null : String(b).startsWith('data:') ? b : PH[b] || null;
+function designOf(x) {
+  const k = x.product;
+  return {
+    product:k, opts:Object.assign(defOpts(k), x.opts || {}), accent:COLORS[x.accent] ? x.accent : 'orange', text:x.text || '',
+    motif:Object.assign({ utama:'asli', aksen:'asli', parts:[], note:'', pos:{}, sel:'badan', src:{} }, x.motif || {}),
+    embFont:FONTS[x.embFont] ? x.embFont : 'greatvibes', embColor:THREADS[x.embColor] ? x.embColor : 'putih',
+    embPos:x.embPos || (EMB_POS[k] || [['depan']])[0][0], customW:x.customW || '', customH:x.customH || '',
+    photos:fabricList(x), photo:fabricList(x)[0] || null
+  };
+}
+function fabricList(x) {
+  if (x.photos) return x.photos.map(p => p.src).filter(Boolean);
+  if (x.fabrics && x.fabrics.length) return x.fabrics.map(photoOf).filter(Boolean);
+  const b = photoOf(x.before); return b ? [b] : [];
+}
+const partPhoto = (D, part) => D.photos[((D.motif.src || {})[part]) || 0] || D.photo;
+function sizeChoice(D) { const k = SIZE_KEY[D.product], row = (OPTS[D.product] || []).find(o => o[0] === k); return row ? row[2][D.opts[k]] : null; }
+function sizeDims(D) {
+  if (D.product === 'custom' && +D.customW && +D.customH) return [+D.customW, +D.customH];
+  const c = sizeChoice(D), m = c && c[2] ? c[2].replace(',', '.').match(/([\d.]+)\s*×\s*([\d.]+)/) : null;
+  return m ? [+m[1], +m[2]] : [0, 0];
+}
+const fmtCm = n => String(n).replace('.', ',');
+function sizeText(D) {
+  if (D.product === 'custom' && +D.customW && +D.customH) return fmtCm(D.customW) + ' × ' + fmtCm(D.customH) + ' cm (ukuran yang diminta)';
+  const c = sizeChoice(D); return c && c[2] ? c[2] + ' (' + SIZE_AXIS[D.product] + ')' : '-';
+}
+const partNames = D => (D.motif.parts || []).map(p => ((PARTS[D.product] || []).find(x => x[0] === p) || [p, p])[1].toLowerCase());
+function motifText(D) {
+  const moved = Object.keys(D.motif.pos || {}).some(k => { const p = D.motif.pos[k]; return p && (p.x || p.y || (p.s && p.s !== 1) || p.r); });
+  const tail = (moved ? ' · posisi motif diatur pelanggan' : '') + (D.motif.note ? ' · Catatan: ' + D.motif.note : '');
+  const ps = partNames(D);
+  if (D.motif.utama !== 'asli' || (ps.length && D.motif.aksen !== 'asli')) {
+    const u = MOTIF[D.motif.utama] || MOTIF.asli, a = MOTIF[D.motif.aksen] || MOTIF.polos;
+    return 'Utama: ' + u.name.toLowerCase() + (ps.length ? ' · Aksen: ' + a.name.toLowerCase() + ' (' + ps.join(', ') + ')' : '') + tail;
+  }
+  let src = '';
+  if (D.photos.length > 1) src = ' (' + visibleParts(D).map(p => PART_LABEL[p].toLowerCase() + ': foto ' + ((((D.motif.src || {})[p]) || 0) + 1)).join(', ') + ')';
+  return 'Dari kain bajumu' + src + tail;
+}
+function embText(D) {
+  if (!TEXT_OK[D.product] || !D.text.trim()) return 'Tanpa bordir';
+  const pos = ((EMB_POS[D.product] || []).find(p => p[0] === D.embPos) || ['', ''])[1];
+  return '"' + D.text.trim() + '" · huruf ' + FONTS[D.embFont][0].toLowerCase() + ' · benang ' + THREADS[D.embColor][0].toLowerCase() + (pos ? ' · ' + pos.toLowerCase() : '');
+}
+
+const UTAMA_C = { polos:'#E9DCC5', kotak:'#4A6A9C', garis:'#4A6A9C', bunga:'#B23F72', polkadot:'#2A69A6', batik:'#7A4B2A' };
+const PART_LABEL = { badan:'Badan', saku:'Saku', tali:'Tali', alas:'Alas bawah', atas:'Panel atas', bawah:'Panel bawah', tarikan:'Tarikan', selang:'Selang-seling', kepala:'Kepala', telinga:'Telinga', kaki:'Kaki', aksesori:'Aksesori', aksen:'Bagian aksen' };
+function visibleParts(D) {
+  const P = D.product, ch = k => { const row = (OPTS[P] || []).find(o => o[0] === k); return row && row[2][D.opts[k]] ? row[2][D.opts[k]][0] : ''; }, inc = p => (D.motif.parts || []).includes(p);
+  if (P === 'tote') return ['badan', 'alas', 'tali'].concat(ch('saku') === 'Saku luar' ? ['saku'] : []);
+  if (P === 'pouch') return ['badan', 'atas', 'bawah'].concat(ch('tarikan') === 'Logam' ? [] : ['tarikan']);
+  if (P === 'scrunchie') return ['badan'].concat(inc('selang') ? ['selang'] : []);
+  if (P === 'boneka') return ['badan', 'kepala', 'kaki'].concat(ch('bentuk') === 'Boneka orang' ? [] : ['telinga']).concat(ch('aksesori') === 'Tanpa' ? [] : ['aksesori']);
+  return ['badan'].concat(inc('aksen') ? ['aksen'] : []);
+}
+const partRole = (D, part) => part !== 'badan' || D.product !== 'scrunchie' ? ((D.motif.parts || []).includes(part) ? 'aksen' : 'utama') : 'utama';
+const posOf = (D, part) => Object.assign({ x:0, y:0, s:1, r:0 }, ((D.motif.pos || {})[part]) || {});
+const tfStr = p => `translate(${(180 + p.x).toFixed(1)} ${(170 + p.y).toFixed(1)}) rotate(${(+p.r || 0).toFixed(0)}) scale(${(+p.s || 1).toFixed(2)}) translate(-180 -170)`;
+function patternFor(id, motif, role, D, pos, photo) {
+  const C = role === 'aksen' ? COLORS[D.accent] : (UTAMA_C[motif] || '#4A6A9C');
+  const L = hexMix(C, '#ffffff', 0.72), K = hexMix(C, '#302D3D', 0.45);
+  const P = (w, h, inner, base) => `<pattern id="${id}" width="${w}" height="${h}" patternUnits="userSpaceOnUse" data-base="${base || ''}" patternTransform="${pos ? tfStr(pos) : ''}${base ? ' ' + base : ''}">${inner}</pattern>`;
+  if (motif === 'asli') {
+    const ph = photo || D.photo;
+    if (ph) return P(240, 240, `<image href="${ph}" width="240" height="240" preserveAspectRatio="xMidYMid slice"/>`, role === 'aksen' && !photo ? 'translate(70 50)' : '');
+    return patternFor(id, 'kotak', 'utama', D, pos);
+  }
+  if (motif === 'polos') return P(20, 20, `<rect width="20" height="20" fill="${role === 'aksen' ? C : UTAMA_C.polos}"/><path d="M0 5h20M0 15h20" stroke="#302D3D" stroke-opacity=".05"/>`);
+  if (motif === 'kotak') return P(24, 24, `<rect width="24" height="24" fill="${L}"/><rect y="7" width="24" height="10" fill="${C}" opacity=".6"/><rect x="7" width="10" height="24" fill="${C}" opacity=".6"/><path d="M0 12H24M12 0V24" stroke="${K}" stroke-width="1.2" opacity=".55"/>`);
+  if (motif === 'garis') return P(16, 16, `<rect width="16" height="16" fill="${L}"/><rect width="6" height="16" fill="${C}"/>`, 'rotate(90)');
+  if (motif === 'bunga') return P(26, 26, `<rect width="26" height="26" fill="${L}"/><g fill="${C}">${[0, 72, 144, 216, 288].map(a => `<circle cx="${(13 + 4.2 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(13 + 4.2 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="3"/>`).join('')}</g><circle cx="13" cy="13" r="2.2" fill="#F5D76E"/><circle cx="2" cy="2" r="1.4" fill="${C}" opacity=".6"/>`);
+  if (motif === 'polkadot') return P(22, 22, `<rect width="22" height="22" fill="${C}"/><circle cx="6" cy="6" r="3.2" fill="#fff"/><circle cx="17" cy="17" r="3.2" fill="#fff"/>`);
+  if (motif === 'batik') return P(28, 28, `<rect width="28" height="28" fill="${C}"/><path d="M-4 30C4 24 6 14 14 14S24 4 32 -2" stroke="#F3E3C3" stroke-width="5" fill="none"/><path d="M-4 30C4 24 6 14 14 14S24 4 32 -2" stroke="${K}" stroke-width="1.4" fill="none"/><circle cx="5" cy="6" r="1.8" fill="#F3E3C3"/><circle cx="23" cy="22" r="1.8" fill="#F3E3C3"/>`);
+  return P(20, 20, `<rect width="20" height="20" fill="${L}"/>`);
+}
+function motifSwatch(motif, role, D) {
+  const id = 'sw' + role[0] + motif;
+  return `<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" style="border-radius:6px;border:1.5px solid #302D3D;flex:none"><defs>${patternFor(id, motif, role, D)}</defs><rect width="22" height="22" fill="url(#${id})"/></svg>`;
+}
+function partPattern(px, part, D) { const role = partRole(D, part); return patternFor(px + '-' + part, role === 'aksen' ? D.motif.aksen : D.motif.utama, role, D, posOf(D, part), partPhoto(D, part)); }
+function embTextSVG(D, x, y, maxW, anchor) {
+  const T = (D.text.trim() || 'ReCraft'), f = FONTS[D.embFont], s = f[0] === 'Kapital' ? T.toUpperCase() : T;
+  const fs = Math.max(12, Math.min(26, Math.floor(maxW / Math.max(3, s.length) / 0.58 * f[3])));
+  const th = THREADS[D.embColor][1], edge = D.embColor === 'putih' ? '#302D3D' : hexMix(th, '#302D3D', 0.5);
+  return `<text x="${x}" y="${y}" text-anchor="${anchor || 'middle'}" font-family='${f[1]}' font-weight="${f[2]}" font-size="${fs}" fill="${th}" stroke="${edge}" stroke-width="2.2" paint-order="stroke" letter-spacing="${f[0] === 'Kapital' ? 1.5 : 0}" pointer-events="none">${esc(s)}</text>`;
+}
+const embPart = D => ({ saku:'saku', kaki:'kaki' })[D.embPos] && visibleParts(D).includes(({ saku:'saku', kaki:'kaki' })[D.embPos]) ? ({ saku:'saku', kaki:'kaki' })[D.embPos] : 'badan';
+function layoutSVG(x, px, sel) {
+  const D = designOf(x), P = D.product, parts = D.motif.parts || [], O = D.opts;
+  const R = part => `data-part="${part}"${sel === part ? ' class="selpart"' : ''}`;
+  const F = part => `url(#${px}-${part})`;
+  const ST = 'stroke="#302D3D" stroke-width="4" stroke-linejoin="round"';
+  const SEW = 'stroke="#302D3D" stroke-width="1.6" stroke-dasharray="5 4" fill="none" opacity=".55" pointer-events="none"';
+  const choice = k => { const row = (OPTS[P] || []).find(o => o[0] === k); return row && row[2][O[k]] ? row[2][O[k]][0] : ''; };
+  let g = '', box = [70, 115, 290, 300], emb = null;
+  if (P === 'tote') {
+    const wide = choice('bentuk') === 'Lebar', bucket = choice('bentuk') === 'Bucket';
+    const x1 = wide ? 50 : 70, x2 = wide ? 310 : 290, cy = choice('tali') === 'Pendek' ? 72 : 38;
+    const handle = (a, b) => `<path d="M${a} 118C${a} ${cy} ${b} ${cy} ${b} 118" stroke="#302D3D" stroke-width="20" fill="none" stroke-linecap="round" data-part="tali"/><path d="M${a} 118C${a} ${cy} ${b} ${cy} ${b} 118" stroke="${F('tali')}" stroke-width="13" fill="none" stroke-linecap="round" data-part="tali"/>`;
+    const bodyPath = bucket ? `M${x1} 115H${x2}L${x2 - 8} 270Q${x2 - 12} 300 ${x2 - 45} 300H${x1 + 45}Q${x1 + 12} 300 ${x1 + 8} 270Z` : `M${x1} 115H${x2}L${x2 - 10} 300H${x1 + 10}Z`;
+    g += handle(x1 + 40, x1 + 95) + handle(x2 - 95, x2 - 40);
+    g += `<clipPath id="${px}c"><path d="${bodyPath}"/></clipPath><path d="${bodyPath}" fill="${F('badan')}" ${R('badan')}/>`;
+    g += `<g clip-path="url(#${px}c)"><rect x="0" y="255" width="360" height="60" fill="${F('alas')}" ${R('alas')}/><path d="M0 255H360" stroke="#302D3D" stroke-width="3" pointer-events="none"/></g><path d="${bodyPath}" fill="none" ${ST} pointer-events="none"/>`;
+    g += `<path d="M${x1 + 8} 126H${x2 - 8}" ${SEW}/>`;
+    const saku = choice('saku');
+    if (saku === 'Saku luar') g += `<rect x="140" y="165" width="80" height="66" rx="6" fill="${F('saku')}" ${ST} ${R('saku')}/><path d="M146 176H214" ${SEW}/>`;
+    if (saku === 'Saku dalam') g += `<rect x="140" y="165" width="80" height="66" rx="6" fill="none" stroke="#302D3D" stroke-width="2" stroke-dasharray="8 6" opacity=".5" pointer-events="none"/>`;
+    box = [x1, 115, x2, 300];
+    emb = { depan:[180, 152, 150], saku:[180, 210, 70], bawah:[x2 - 22, 245, 90, 'end'] }[D.embPos] || [180, 152, 150];
+    if (D.embPos === 'saku' && saku !== 'Saku luar') emb = [180, 152, 150];
+  } else if (P === 'pouch') {
+    g += `<clipPath id="${px}c"><rect x="50" y="120" width="260" height="150" rx="24"/></clipPath><rect x="50" y="120" width="260" height="150" rx="24" fill="${F('badan')}" ${R('badan')}/>`;
+    g += `<g clip-path="url(#${px}c)"><rect x="40" y="118" width="280" height="40" fill="${F('atas')}" ${R('atas')}/><rect x="40" y="232" width="280" height="40" fill="${F('bawah')}" ${R('bawah')}/><path d="M40 158H320M40 232H320" stroke="#302D3D" stroke-width="2.5" pointer-events="none"/></g>`;
+    g += `<rect x="50" y="120" width="260" height="150" rx="24" fill="none" ${ST} pointer-events="none"/><rect x="44" y="111" width="272" height="15" rx="7" fill="#D9B46A" stroke="#302D3D" stroke-width="3" pointer-events="none"/><path d="M52 118.5H308" stroke="#302D3D" stroke-width="2" stroke-dasharray="3 3" pointer-events="none"/>`;
+    g += `<path d="M300 119L318 150" stroke="#302D3D" stroke-width="4"/>` + (choice('tarikan') === 'Logam' ? `<rect x="309" y="146" width="18" height="26" rx="5" fill="#C8C8C8" ${ST}/>` : `<path d="M311 148l-8 34 12-6 6 8 6-36z" fill="${F('tarikan')}" stroke="#302D3D" stroke-width="3" stroke-linejoin="round" ${R('tarikan')}/>`);
+    box = [50, 120, 310, 270];
+    emb = { depan:[180, 202, 170], pojok:[292, 222, 110, 'end'] }[D.embPos] || [180, 202, 170];
+  } else if (P === 'scrunchie') {
+    const alt = parts.includes('selang');
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2, x0 = (180 + Math.cos(a) * 80).toFixed(1), y0 = (178 + Math.sin(a) * 80).toFixed(1), deg = ((a * 180) / Math.PI + 90).toFixed(0), pt = alt && k % 2 ? 'selang' : 'badan';
+      g += `<ellipse cx="${x0}" cy="${y0}" rx="38" ry="31" transform="rotate(${deg} ${x0} ${y0})" fill="${F(pt)}" stroke="#302D3D" stroke-width="3.5" ${R(pt)}/>`;
+    }
+    g += `<circle cx="180" cy="178" r="42" fill="#FFF9F2" stroke="#302D3D" stroke-width="3.5" pointer-events="none"/>`;
+    box = [62, 60, 298, 296];
+  } else if (P === 'boneka') {
+    const shape = choice('bentuk'), acc = choice('aksesori');
+    if (shape === 'Kelinci') g += `<ellipse cx="148" cy="48" rx="17" ry="46" fill="${F('telinga')}" ${ST} ${R('telinga')}/><ellipse cx="212" cy="48" rx="17" ry="46" fill="${F('telinga')}" ${ST} ${R('telinga')}/>`;
+    else if (shape === 'Beruang') g += `<circle cx="128" cy="70" r="26" fill="${F('telinga')}" ${ST} ${R('telinga')}/><circle cx="232" cy="70" r="26" fill="${F('telinga')}" ${ST} ${R('telinga')}/>`;
+    g += `<ellipse cx="112" cy="222" rx="19" ry="40" transform="rotate(22 112 222)" fill="${F('badan')}" ${ST} ${R('badan')}/><ellipse cx="248" cy="222" rx="19" ry="40" transform="rotate(-22 248 222)" fill="${F('badan')}" ${ST} ${R('badan')}/>`;
+    g += `<ellipse cx="180" cy="236" rx="66" ry="62" fill="${F('badan')}" ${ST} ${R('badan')}/><ellipse cx="140" cy="292" rx="31" ry="20" fill="${F('kaki')}" ${ST} ${R('kaki')}/><ellipse cx="220" cy="292" rx="31" ry="20" fill="${F('kaki')}" ${ST} ${R('kaki')}/>`;
+    g += `<circle cx="180" cy="116" r="60" fill="${F('kepala')}" ${ST} ${R('kepala')}/>`;
+    if (shape === 'Boneka orang') g += `<path d="M122 106C126 62 234 62 238 106C222 86 140 86 122 106Z" fill="#6B4A2E" ${ST} pointer-events="none"/>`;
+    else g += `<ellipse cx="180" cy="134" rx="24" ry="17" fill="#FFF6E8" stroke="#302D3D" stroke-width="3" pointer-events="none"/><ellipse cx="180" cy="127" rx="7" ry="5" fill="#302D3D" pointer-events="none"/>`;
+    g += `<g pointer-events="none"><circle cx="158" cy="110" r="6" fill="#302D3D"/><circle cx="202" cy="110" r="6" fill="#302D3D"/><circle cx="146" cy="130" r="7" fill="#F4A6C1" opacity=".8"/><circle cx="214" cy="130" r="7" fill="#F4A6C1" opacity=".8"/></g>`;
+    if (acc === 'Dasi kupu-kupu') g += `<path d="M180 182L150 168V196Z M180 182L210 168V196Z" fill="${F('aksesori')}" ${ST} ${R('aksesori')}/><circle cx="180" cy="182" r="7" fill="${F('aksesori')}" stroke="#302D3D" stroke-width="3" ${R('aksesori')}/>`;
+    if (acc === 'Syal') g += `<path d="M126 176Q180 196 234 176L236 192Q180 214 124 192Z" fill="${F('aksesori')}" ${ST} ${R('aksesori')}/><path d="M210 192l8 40 16-4-6-40z" fill="${F('aksesori')}" ${ST} ${R('aksesori')}/>`;
+    box = [93, shape === 'Kelinci' ? 2 : 44, 267, 312];
+    emb = { dada:[180, 246, 96], kaki:[220, 298, 50] }[D.embPos] || [180, 246, 96];
+  } else {
+    g += `<rect x="80" y="90" width="200" height="200" rx="22" fill="${F('badan')}" ${ST} ${R('badan')}/>`;
+    if (parts.includes('aksen')) g += `<clipPath id="${px}c"><rect x="80" y="90" width="200" height="200" rx="22"/></clipPath><g clip-path="url(#${px}c)"><path d="M190 90H280V180Z" fill="${F('aksen')}" ${R('aksen')}/><path d="M80 236L134 290H80Z" fill="${F('aksen')}" ${R('aksen')}/></g><rect x="80" y="90" width="200" height="200" rx="22" fill="none" ${ST} pointer-events="none"/>`;
+    g += `<rect x="92" y="102" width="176" height="176" rx="14" ${SEW}/>`;
+    box = [80, 90, 280, 290];
+  }
+  let textEl = '';
+  if (TEXT_OK[P] && D.text.trim() && emb) textEl = embTextSVG(D, emb[0], emb[1], emb[2], emb[3]);
+  const [w, h] = sizeDims(D), [a1, b1, a2, b2] = box;
+  const dims = w ? `<g font-family="Plus Jakarta Sans,system-ui,sans-serif" font-size="13" font-weight="700" fill="#6B6780" pointer-events="none">
+    <path d="M${a1} ${b2 + 18}H${a2}M${a1} ${b2 + 12}v12M${a2} ${b2 + 12}v12" stroke="#6B6780" stroke-width="1.5" fill="none"/>
+    <rect x="${(a1 + a2) / 2 - 34}" y="${b2 + 9}" width="68" height="18" rx="9" fill="#FFF9F2"/><text x="${(a1 + a2) / 2}" y="${b2 + 23}" text-anchor="middle">${P === 'scrunchie' ? 'Ø ' : ''}${fmtCm(w)} cm</text>
+    ${P === 'scrunchie' ? `<text x="180" y="183" text-anchor="middle" font-size="11">kain ${fmtCm(h)} cm</text>` : `<path d="M${a2 + 22} ${b1}V${b2}M${a2 + 16} ${b1}h12M${a2 + 16} ${b2}h12" stroke="#6B6780" stroke-width="1.5" fill="none"/>
+    <g transform="translate(${a2 + 22} ${(b1 + b2) / 2}) rotate(-90)"><rect x="-34" y="-9" width="68" height="18" rx="9" fill="#FFF9F2"/><text x="0" y="5" text-anchor="middle">${fmtCm(h)} cm</text></g>`}</g>` : '';
+  const defs = visibleParts(D).map(pt => partPattern(px, pt, D)).join('');
+  return `<svg viewBox="0 0 360 340" role="img" aria-label="Pratinjau desain ${PROD[P].name}: ${esc(motifText(D))}" style="width:100%;height:auto;display:block"><defs>${defs}</defs>${g}${textEl}${dims}</svg>`;
+}
+function embSVG(x, px) {
+  const D = designOf(x), T = D.text.trim() || 'ReCraft', f = FONTS[D.embFont], s = f[0] === 'Kapital' ? T.toUpperCase() : T;
+  const fs = Math.max(20, Math.min(58, Math.floor(290 / Math.max(3, s.length) / 0.6 * f[3])));
+  const th = THREADS[D.embColor][1], dark = D.embColor === 'putih' ? '#9A8F80' : hexMix(th, '#302D3D', 0.55), lite = hexMix(th, '#ffffff', 0.55);
+  const part = embPart(D), role = partRole(D, part), pos = posOf(D, part);
+  const T2 = `x="170" y="${84 + fs * 0.32}" text-anchor="middle" font-family='${f[1]}' font-weight="${f[2]}" font-size="${fs}" letter-spacing="${f[0] === 'Kapital' ? 2 : 0}"`;
+  return `<svg viewBox="0 0 340 160" role="img" aria-label="Pratinjau bordir ${esc(T)}" style="width:100%;height:auto;display:block;border-radius:14px">
+    <defs>${patternFor(px + 'f', role === 'aksen' ? D.motif.aksen : D.motif.utama, role, D, pos, partPhoto(D, part))}
+      <pattern id="${px}s" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="3" height="3" fill="${th}"/><rect width="1" height="3" fill="${lite}" opacity=".55"/></pattern></defs>
+    <rect width="340" height="160" fill="url(#${px}f)"/><rect width="340" height="160" fill="#FFF9F2" opacity=".42"/>
+    <rect x="10" y="10" width="320" height="140" rx="12" fill="none" stroke="#302D3D" stroke-width="1.5" stroke-dasharray="6 5" opacity=".6"/>
+    <text ${T2} fill="#302D3D" opacity=".28" transform="translate(2 3)">${esc(s)}</text>
+    <text ${T2} fill="url(#${px}s)" stroke="${dark}" stroke-width="1.6" paint-order="stroke">${esc(s)}</text>
+    <text x="330" y="146" text-anchor="end" font-family="Plus Jakarta Sans,sans-serif" font-size="11" font-weight="700" fill="#302D3D" opacity=".6">Pratinjau bordir</text></svg>`;
+}
+
+/* WhatsApp */
+function waText(o) {
+  const D = designOf(o), p = PROD[o.product];
+  return ['Halo CraftMin, saya ingin mengkonfirmasi dan melakukan pembayaran produk saya (' + o.id + ').', '',
+    'Rincian pesanan:',
+    '• Nama: ' + o.customer, '• Produk: ' + p.name, '• Ukuran: ' + sizeText(D),
+    '• Pilihan: ' + (optSummary(o.product, o.opts) || '-'), '• Motif: ' + motifText(D), '• Bordir: ' + embText(D),
+    '• Memory Tag: ya' + (o.tagLabel ? ' (tulisan: ' + o.tagLabel + ')' : ''),
+    '• Penyerahan kain: ' + PICK[o.pickup.method][0] + (o.pickup.method === 'jemput' ? ' (' + tglh(o.pickup.date) + ', ' + o.pickup.slot + ')' : ''),
+    '• Total: ' + rp(o.total), '', 'Terima kasih!'].join('\n');
+}
+const waLink = o => ADMIN_WA ? 'https://wa.me/' + ADMIN_WA + '?text=' + encodeURIComponent(waText(o)) : '';
+const waBtn = (o, cls) => ADMIN_WA ? `<a class="btn btn-wa ${cls || ''}" href="${waLink(o)}" target="_blank" rel="noopener">${ic('Chat', 18)} Bayar lewat WhatsApp</a>` : `<button class="btn btn-sec ${cls || ''}" disabled>Nomor WhatsApp admin belum diatur</button>`;
+
 /* ---------- chrome ---------- */
 function renderChrome(h) {
   setDbStatus();
@@ -815,12 +1035,12 @@ function renderChrome(h) {
     <div><p class="b">Layanan</p>${fl('cara-kerja','Cara kerja')}${fl('jelajahi','Jelajahi produk')}${fl(S.user ? 'buat-unggah' : 'masuk','Mulai ReCraft')}${fl('tag-1','Contoh Memory Tag')}</div>
     <div><p class="b">ReCraft</p>${fl('tentang','Tentang kami')}${fl('faq','FAQ')}${fl('bantuan','Pusat bantuan')}</div>
     <div><p class="b">Akun</p>${S.user ? fl('profil','Profil') + fl('pesanan','Pesanan saya') + fl('cerita-saya','Cerita saya') : fl('masuk','Masuk') + fl('daftar','Daftar')}</div>
-  </div><hr class="hr"><div class="row sb wr note"><span>Jangan langsung dibuang. ReCraft saja.</span><span>Prototipe tugas kuliah · versi 1.1. Nama, angka, dan alamat contoh hanya untuk peragaan.</span></div></div></div>`;
+  </div><hr class="hr"><div class="row sb wr note"><span>Jangan langsung dibuang. ReCraft saja.</span><span>Prototipe tugas kuliah · versi 1.2. Nama, angka, dan alamat contoh hanya untuk peragaan.</span></div></div></div>`;
 }
 
 /* ---------- public views ---------- */
 function vHome() {
-  const trust = [['Leaf','Dari bajumu sendiri','tq'],['Eye','Lihat desain sebelum dijahit','orange'],['Truck','Kain dijemput ke rumah','blue'],['QR','Memory Tag QR atau NFC','pink']];
+  const trust = [['Leaf','Dari bajumu sendiri','tq'],['Eye','Lihat desain sebelum dijahit','orange'],['Truck','Kain dijemput ke rumah','blue'],['QR','Memory Tag di setiap produk','pink']];
   const why = [['tq','Leaf','Berkelanjutan','Mengurangi limbah tekstil dengan memberi baju lama fungsi baru.'],['purple','Sparkle','Kreatif','Kain biasa diolah jadi produk yang unik.'],['pink','Heart','Bermakna','Kenangannya tetap ada walau bentuk bajunya berubah.'],['yellow','User','Personal','Kamu ikut mendesain barang yang hanya kamu punya.']];
   const steps = [['Unggah','Foto baju yang mau di-ReCraft.','orange'],['Kustomisasi','Pilih produk dan desainnya.','purple'],['Pratinjau','Lihat desain sebelum kain dipotong.','blue'],['Jemput kain','Kurir mengambil kain ke rumahmu.','yellow'],['ReCraft','Crafter menjahitnya dengan tangan.','tq'],['Terima','Datang bersama cerita dan Memory Tag.','pink']];
   const testi = [['Kemeja batik almarhum Ayah jadi boneka beruang untuk Mama. Sekarang bonekanya selalu ada di kamar Mama.','Anisa R.','Boneka','boneka','tq'],['Aku lihat desain tote-nya di layar sebelum kainnya dipotong. Hasilnya persis seperti pratinjau.','Yoga P.','Tote bag','tote','yellow'],['Waktu tag-nya dipindai di pernikahan kakakku, foto seragam sekolah kami muncul. Semua langsung terharu.','Salsa M.','Set scrunchie','scrunchie','pink']];
@@ -841,10 +1061,6 @@ function vHome() {
       <div class="ba-mark">${ic('Needle', 20)}RECRAFT</div>
     </div>
   </section>
-  <section class="wrap">
-    <div class="stats">${[['1.240+','Baju di-ReCraft'],['870+','Cerita tersimpan'],['520+','Pelanggan senang'],['3,2 ton','Limbah tekstil berkurang']].map(s => `<div><div class="stat">${s[0]}</div><div class="sm muted b">${s[1]}</div></div>`).join('')}</div>
-    <p class="note mt8">Angka contoh untuk prototipe.</p>
-  </section>
   <section class="wrap band">
     <div class="sechead"><div><p class="kick c-purple">Kenapa ReCraft</p><h2 class="h2">Kenapa Baju Lamamu Layak Dapat Kesempatan Kedua?</h2></div></div>
     <div class="grid g-4">${why.map(w => `<div class="vcard bg-${w[0]}"><div class="tile c-${w[0]}">${ic(w[1], 26)}</div><h3 class="h3">${w[2]}</h3><p class="muted">${w[3]}</p></div>`).join('')}</div>
@@ -859,10 +1075,10 @@ function vHome() {
   </section>
   <section class="wrap"><div class="memsec">
     <div class="col g16"><p class="kick c-pink" style="margin:0">Dari kenangan jadi produk</p><h2 class="h2">Bajumu Punya Cerita. Jangan Biarkan Hilang.</h2>
-      <p class="lead muted">Ceritakan arti kain itu untukmu. Kami jahitkan Memory Tag pada produk barumu. Pilih QR, NFC, atau keduanya. Tag itu membuka foto sebelum, foto sesudah, dan ceritamu.</p>
+      <p class="lead muted">Ceritakan arti kain itu untukmu. Kami jahitkan Memory Tag, label kain berkode QR, pada produk barumu. Saat dipindai, tag itu membuka foto sebelum, foto sesudah, dan ceritamu.</p>
       <div class="chain"><span style="background:#fff">Kemeja Wisuda</span>${ic('ArrowRight', 18)}<span style="background:var(--yellow)">Tote Bag Custom</span>${ic('ArrowRight', 18)}<span style="background:var(--tq)">Cerita Digital</span></div>
       <div class="row wr g12"><a class="btn btn-pri" href="#cara-kerja" data-go="cara-kerja">Pelajari Memory Tag</a><a class="btn btn-sec" href="#tag-1" data-go="tag-1">${ic('QR', 18)} Coba contoh tag</a></div></div>
-    <div>${tagVisual('qrnfc', 'Hari Terakhir SMA', 'story-1')}</div>
+    <div>${tagVisual('qr', 'Hari Terakhir SMA', 'story-1')}</div>
   </div></section>
   <section class="wrap band">
     <p class="h3" style="max-width:900px;font-weight:600;line-height:1.4">Ada baju yang terlalu berarti untuk dibuang, tapi sudah terlalu tua untuk dipakai lagi. ReCraft memberinya fungsi baru. Kemeja wisuda bisa jadi tote bag. Gaun lama keluarga bisa jadi kenang-kenangan. Kemeja favorit bisa jadi barang yang kamu bawa setiap hari.</p>
@@ -895,13 +1111,13 @@ function vHow() {
     ['Upload','orange','Unggah foto baju','Foto bagian depan dan belakang. Pilih jenis pakaian, bahan, dan kondisinya.'],
     ['Search','tq','Cek kain','Kami perkirakan luas kain yang bisa dipakai dan produk apa saja yang cocok.'],
     ['Bag','yellow','Pilih produk','Tote bag, pouch, scrunchie, boneka, atau produk custom sesuai idemu.'],
-    ['Edit','orange','Kustomisasi','Atur ukuran, bentuk, tali, saku, susunan kain, dekorasi, warna aksen, dan teks.'],
+    ['Edit','orange','Kustomisasi','Pilih ukuran detail (cm) dan bentuk, atur posisi motif dari kain bajumu, lalu tambahkan teks bordir lengkap dengan pratinjaunya.'],
     ['Eye','blue','Pratinjau desain','Lihat desain lengkap dan harganya sebelum kain dipotong.'],
     ['Heart','pink','Tulis ceritamu','Ceritakan arti baju itu: tahun, momen, dan kenangannya.'],
-    ['QR','purple','Pilih Memory Tag','QR Code, NFC Tag, atau keduanya. Tag ini membuka ceritamu.'],
+    ['QR','purple','Atur Memory Tag','Label kain berkode QR yang dijahit di produk dan membuka ceritamu.'],
     ['Truck','blue','Jadwalkan penjemputan kain','Kurir ReCraft menjemput ke rumah, atau kamu antar ke studio, atau kirim sendiri lewat kurir.'],
     ['Doc','yellow','Tanda tangani surat persetujuan','Surat Pernyataan Persetujuan Hasil Produk, terisi otomatis dari pesananmu.'],
-    ['Card','purple','Bayar','Transfer bank, e-wallet, atau kartu.'],
+    ['Chat','purple','Bayar lewat WhatsApp','Rincian pesanan terkirim ke admin ReCraft. Admin memberi cara bayar (transfer atau QRIS) dan mengonfirmasi.'],
     ['Scissors','orange','Produksi dan quality check','Crafter menjahit dengan tangan. Kamu menyetujui foto hasil akhir dalam 2×24 jam, atau minta satu kali perbaikan.'],
     ['Box','tq','Diterima bersama Memory Tag','Produk dikirim ke rumahmu dan ceritanya otomatis masuk ke Cerita Saya.']
   ];
@@ -911,7 +1127,7 @@ function vHow() {
     <ol class="grid g-3 mt32" style="list-style:none;padding:0">${S12.map((s, i) => `<li class="card col"><div class="row sb"><div class="tile bg-${s[1]}">${ic(s[0], 24)}</div><span class="h3 muted">${i + 1}</span></div><h2 class="h4">${s[2]}</h2><p class="muted">${s[3]}</p></li>`).join('')}</ol>
   </section>
   <section class="wrap"><div class="grid g-2">
-    <div class="card col"><h2 class="h3">Pilihan Memory Tag</h2>${Object.values(TAGS).map(t => `<div class="sumline"><span><b>${t[0]}</b><br><span class="muted">${t[2]}</span></span><span>${rp(t[1])}</span></div>`).join('')}</div>
+    <div class="card col"><h2 class="h3">Memory Tag</h2><div class="sumline"><span><b>${TAGS.qr[0]}</b><br><span class="muted">${TAGS.qr[2]}</span></span><span>${rp(TAG_PRICE)}</span></div></div>
     <div class="card col"><h2 class="h3">Cara menyerahkan kain</h2>${Object.values(PICK).map(t => `<div class="sumline"><span><b>${t[0]}</b><br><span class="muted">${t[2]}</span></span><span>${t[1] ? rp(t[1]) : 'Gratis'}</span></div>`).join('')}</div>
   </div>
   <div class="row wr g12 mt32"><a class="btn btn-cta" href="#masuk" data-act="start">Mulai ReCraft ${ic('ArrowRight', 18)}</a><a class="btn btn-sec" href="#faq" data-go="faq">Baca FAQ</a></div></section>`;
@@ -946,7 +1162,8 @@ function vProduct(m) {
         <div class="row g24 wr"><div><div class="tiny muted">${p.key === 'custom' ? 'Harga' : 'Mulai dari'}</div><div class="price" style="font-size:26px">${p.key === 'custom' ? 'Sesuai ide' : rp(p.base)}</div></div><div><div class="tiny muted">Waktu pengerjaan</div><div class="b">${p.time}</div></div></div>
         <p class="lead">${p.long}</p>
         <div class="card soft pad-s"><div class="b">Kain yang cocok</div><p class="muted">${p.fits}</p></div>
-        <div><div class="b">Yang bisa kamu atur</div><div class="chips mt8">${opts.map(o => `<span class="pill soft-grey">${o[1]}</span>`).join('')}<span class="pill soft-grey">Warna aksen</span>${TEXT_OK[p.key] ? '<span class="pill soft-grey">Teks bordir</span>' : ''}<span class="pill soft-grey">Memory Tag QR / NFC</span></div></div>
+        <div><div class="b">Yang bisa kamu atur</div><div class="chips mt8">${opts.map(o => `<span class="pill soft-grey">${o[1]}</span>`).join('')}<span class="pill soft-grey">Motif dari kain bajumu</span>${TEXT_OK[p.key] ? '<span class="pill soft-grey">Teks bordir + pratinjau</span>' : ''}<span class="pill soft-grey">Memory Tag</span></div></div>
+        ${(() => { const row = (OPTS[p.key] || []).find(o => o[0] === SIZE_KEY[p.key]); return row ? `<div><div class="b">Pilihan ukuran <span class="muted" style="font-weight:500">(${SIZE_AXIS[p.key]})</span></div><div class="tblwrap mt8"><table class="tbl"><tbody>${row[2].map(c => `<tr><td>${c[0]}</td><td class="b nw">${c[2] || '-'}</td><td class="num">${c[1] ? '+' + rp(c[1]) : 'harga dasar'}</td></tr>`).join('')}</tbody></table></div></div>` : ''; })()}
         <div class="row wr g12"><button class="btn btn-cta" data-act="startWith" data-arg="${p.key}">Buat dari bajuku ${ic('ArrowRight', 18)}</button><a class="btn btn-sec" href="#cara-kerja" data-go="cara-kerja">Cara kerja</a></div>
       </div></div>
     <h2 class="h3 mt32" style="margin-top:56px">Produk lainnya</h2>
@@ -973,7 +1190,10 @@ const FAQS = [
   ['Bisa lihat desain sebelum diproduksi?','Bisa. Ada pratinjau langsung saat kustomisasi dan pratinjau lengkap sebelum bayar. Sebelum dikirim, kamu juga menyetujui foto hasil akhir.'],
   ['Bagaimana kalau aku kurang puas dengan hasilnya?','Saat quality check kamu punya waktu 2×24 jam untuk menyetujui foto hasil akhir atau meminta satu kali perbaikan.'],
   ['Bagaimana kalau kainku tidak bisa dipakai?','Kami menghubungimu sebelum memotong. Kamu bisa pilih produk yang lebih kecil, menambah kain, atau minta uang kembali penuh.'],
-  ['Apa bedanya QR Code dan NFC Tag?','QR Code (Rp10.000) dipindai dengan kamera HP. NFC Tag (Rp20.000) cukup ditempelkan ke HP yang mendukung NFC. Paket QR + NFC Rp25.000.'],
+  ['Apa itu Memory Tag?','Label kain berkode QR (Rp10.000) yang dijahit di setiap produk. Saat dipindai dengan kamera HP, terbuka halaman berisi foto sebelum, foto sesudah, dan ceritamu.'],
+  ['Bagaimana cara membayar?','Pembayaran lewat WhatsApp admin ReCraft. Setelah pesanan dibuat, WhatsApp terbuka dengan rincian pesanan. Admin membalas dengan cara bayar (transfer bank atau QRIS) lalu mengonfirmasi pembayaranmu.'],
+  ['Bisakah aku mengatur motif kain?','Bisa. Motif selalu dari kain bajumu sendiri. Saat kustomisasi kamu bisa menggeser, memperbesar, dan memutar motif di setiap bagian produk untuk memilih bagian kain yang tampil. Kalau mengunggah beberapa foto baju, tiap bagian bisa memakai kain yang berbeda.'],
+  ['Berapa ukuran produknya?','Tote bag 30 × 35 cm sampai 45 × 45 cm, pouch 15 × 10 cm sampai 25 × 16 cm, boneka setinggi 20 sampai 35 cm. Ukuran lengkap ada di halaman setiap produk dan saat kustomisasi.'],
   ['Bisakah ceritaku diedit?','Bisa, kapan saja dari Cerita Saya. Tag yang terpasang tetap sama.'],
   ['Bagaimana melacak pesanan?','Buka Pesanan Saya lalu pilih Lacak. Semua status ditampilkan lengkap dengan tanggal dan jamnya.']
 ];
@@ -1031,7 +1251,7 @@ function vForgot() {
   </form></section>`;
 }
 function vOnboard() {
-  const sl = [['Upload','orange','Unggah baju lamamu','Foto baju yang ingin kamu ubah. Kami bantu cek kainnya cukup untuk produk apa saja.'],['Edit','purple','Desain sesukamu','Pilih produk, ukuran, warna aksen, sampai teks bordirnya. Pratinjau berubah langsung.'],['Heart','pink','Simpan ceritanya','Tulis kenangan di balik baju itu. Memory Tag QR atau NFC akan membukanya kapan saja.'],['Truck','blue','Kami jemput kainnya','Pilih jadwal penjemputan, tanda tangani surat persetujuan, lalu pantau prosesnya.']];
+  const sl = [['Upload','orange','Unggah baju lamamu','Foto baju yang ingin kamu ubah. Kami bantu cek kainnya cukup untuk produk apa saja.'],['Edit','purple','Desain sesukamu','Pilih produk, ukuran dalam cm, motif kain, sampai teks bordirnya. Pratinjau berubah langsung.'],['Heart','pink','Simpan ceritanya','Tulis kenangan di balik baju itu. Memory Tag QR atau NFC akan membukanya kapan saja.'],['Truck','blue','Kami jemput kainnya','Pilih jadwal penjemputan, tanda tangani surat persetujuan, lalu pantau prosesnya.']];
   const s = sl[S.onb];
   return `<section class="wrap"><div class="onb"><div class="art bg-${s[1]}">${ic(s[0], 80)}</div><p class="kick c-${s[1]}">Langkah ${S.onb + 1} dari 4</p><h1 class="h2">${s[2]}</h1><p class="lead muted mt12">${s[3]}</p>
     <div class="dots">${sl.map((x, i) => `<i class="${i === S.onb ? 'on' : ''}"></i>`).join('')}</div>
@@ -1050,9 +1270,10 @@ function vDash() {
     ${active.length ? `<h2 class="h3 mt32">Pesanan aktif</h2><div class="grid g-2 mt16">${active.map(o => `<article class="card col">
       <div class="row g16 top-a"><div class="tile" style="width:84px;height:84px;overflow:hidden">${prodImg(o.product)}</div><div style="flex:1"><div class="row sb wr"><b>${esc(o.name)}</b>${badge(o)}</div><div class="sm muted">${o.id} · ${tgl(o.date)}</div><div class="sm mt8"><b>${stepName(o, o.step)}</b> · ${o.history.length ? ago(o.history[o.history.length - 1].at) : ''}</div></div></div>
       ${miniTl(o)}
+      ${o.pay === 'menunggu' ? `<div class="okbox" style="background:#E7F8EE;color:#1E7D46;border-color:#1E7D46">${ic('Chat', 18)}Menunggu pembayaran lewat WhatsApp admin.</div>` : ''}
       ${o.step === 5 && o.qc === 'waiting' ? `<div class="okbox" style="background:var(--s-pink);color:var(--i-pink);border-color:var(--pink)">${ic('Check', 18)}Foto hasil akhir menunggu persetujuanmu.</div>` : ''}
-      ${o.step === 0 && o.pickup.method === 'jemput' ? `<div class="okbox" style="background:var(--s-blue);color:var(--i-blue);border-color:var(--blue)">${ic('Truck', 18)}Penjemputan ${tglh(o.pickup.date)}, ${o.pickup.slot}</div>` : ''}
-      <div class="row g8"><a class="btn btn-pri btn-sm" href="#lacak-${o.id}" data-go="lacak-${o.id}">Lacak pesanan</a><a class="btn btn-sec btn-sm" href="#pesanan-${o.id}" data-go="pesanan-${o.id}">Detail</a></div></article>`).join('')}</div>` : ''}
+      ${o.step === 0 && o.pay !== 'menunggu' && o.pickup.method === 'jemput' ? `<div class="okbox" style="background:var(--s-blue);color:var(--i-blue);border-color:var(--blue)">${ic('Truck', 18)}Penjemputan ${tglh(o.pickup.date)}, ${o.pickup.slot}</div>` : ''}
+      <div class="row g8 wr">${o.pay === 'menunggu' ? waBtn(o, 'btn-sm') : ''}<a class="btn btn-pri btn-sm" href="#lacak-${o.id}" data-go="lacak-${o.id}">Lacak pesanan</a><a class="btn btn-sec btn-sm" href="#pesanan-${o.id}" data-go="pesanan-${o.id}">Detail</a></div></article>`).join('')}</div>` : ''}
     <div class="grid g-4 mt32">${quick.map(q => `<button class="card col" style="cursor:pointer;text-align:left" data-${q[3] === 'buat-unggah' ? 'act="newRecraft"' : `go="${q[3]}"`}><div class="tile bg-${q[1]}">${ic(q[0], 24)}</div><b>${q[2]}</b></button>`).join('')}</div>
     ${os.length ? `<div class="grid g-3 mt32">
       <div class="kpi"><span class="sm muted">Total ReCraft</span><span class="stat">${os.filter(o => !o.cancelled).length}</span></div>
@@ -1081,7 +1302,7 @@ function summaryCard(i) {
   const d = S.draft, p = PROD[d.product], pr = priceOf(d);
   const lines = i >= 6 ? pr.all : pr.lines;
   return `<div class="card col g12"><h2 class="h4">Ringkasan ReCraft</h2>
-    <div class="row g12"><div class="tile" style="width:64px;height:64px;overflow:hidden">${prodImg(p.key)}</div><div><b>${p.name}</b><div class="sm muted">dari ${esc(d.garment.toLowerCase())} · ${esc(d.material)}</div><div class="sm muted">Aksen ${CNAME[d.accent].toLowerCase()}</div></div></div>
+    <div class="row g12"><div class="tile" style="width:64px;height:64px;overflow:hidden">${prodImg(p.key)}</div><div><b>${p.name}</b><div class="sm muted">dari ${esc(d.garment.toLowerCase())} · ${esc(d.material)}</div><div class="sm muted">${esc(sizeText(designOf(d)))}</div></div></div>
     <div>${lines.map(l => `<div class="sumline"><span>${esc(l[0])}</span><span>${rp(l[1])}</span></div>`).join('')}</div>
     <div class="total"><span>${i >= 6 ? 'Total' : 'Harga produk'}</span><span>${rp(i >= 6 ? pr.total : pr.productTotal)}</span></div>
     ${p.key === 'custom' ? '<p class="note">Harga final produk custom dikonfirmasi crafter setelah kain diperiksa.</p>' : ''}</div>`;
@@ -1089,7 +1310,7 @@ function summaryCard(i) {
 
 function fUpload() {
   const d = S.draft;
-  return `<h1 class="h2">Baju apa yang ingin kamu ReCraft?</h1><p class="muted mt8">Tambahkan foto yang jelas dari depan dan belakang. JPG, PNG, atau WEBP, maksimal 8 MB per foto, paling banyak 4 foto.</p>
+  return `<h1 class="h2">Baju apa yang ingin kamu ReCraft?</h1><p class="muted mt8">Tambahkan foto kain yang jelas dan lurus dari depan. Foto ini juga dipakai sebagai motif di pratinjau desain. Kalau ingin memakai beberapa kain, unggah beberapa foto. JPG, PNG, atau WEBP, maksimal 8 MB per foto, paling banyak 4 foto.</p>
     <label class="drop mt24" id="drop"><input type="file" accept="image/*" multiple data-ch="photos" aria-label="Pilih foto baju"><div class="tile bg-orange">${ic('Upload', 26)}</div><b>Tarik foto ke sini atau klik untuk memilih</b><span class="sm muted">${d.photos.length}/4 foto terunggah</span></label>
     <div class="row wr g12 mt12"><button class="btn btn-sec btn-sm" data-act="samplePhoto">${ic('Image', 16)} Pakai foto contoh (kemeja)</button></div>
     ${d.photos.length ? `<div class="thumbs mt16">${d.photos.map((p, i) => `<div class="thumb"><img src="${p.src}" alt="Foto baju ${i + 1}"><button data-act="rmPhoto" data-arg="${i}" aria-label="Hapus foto ${i + 1}">${ic('Close', 14)}</button></div>`).join('')}</div>` : ''}
@@ -1118,37 +1339,65 @@ function fProduct() {
       <div class="pimg" style="border:2px solid var(--dark);border-radius:16px">${prodImg(p.key)}</div><b class="h4">${p.name}</b><span class="sm muted">${p.desc}</span><span class="row sb"><b>${p.key === 'custom' ? 'Sesuai ide' : 'Mulai ' + rp(p.base)}</b><span class="tiny muted">${p.time}</span></span>${ok ? '' : '<span class="pill soft-grey">Kain kurang</span>'}</button>`; }).join('')}</div>`;
 }
 function fDesign() {
-  const d = S.draft, p = PROD[d.product], pr = priceOf(d), sizeIdx = d.opts[SIZE_KEY[d.product]] ?? 1;
-  const scale = [0.86, 0.95, 1.04][sizeIdx] || 0.95;
-  const chosen = optSummary(d.product, d.opts);
-  const controls = (OPTS[d.product] || []).map(([k, lab, ch]) => `<div class="ctrl"><div class="row sb"><span class="lbl">${lab}</span></div><div class="chips">${ch.map((c, j) => `<button class="chip" data-act="opt" data-arg="${k}|${j}" aria-pressed="${d.opts[k] === j}">${c[0]}${c[1] ? ` <small>+${rp(c[1])}</small>` : ''}</button>`).join('')}</div></div>`).join('');
+  const d = S.draft, p = PROD[d.product], pr = priceOf(d), D = designOf(d);
+  const sizeIdx = d.opts[SIZE_KEY[d.product]] ?? 1, scale = [0.86, 0.95, 1.04][sizeIdx] || 0.95;
+  const chip = (act, arg, on, label, extra) => `<button class="chip" data-act="${act}" data-arg="${arg}" aria-pressed="${on}">${label}${extra || ''}</button>`;
+  const controls = (OPTS[d.product] || []).map(([k, lab, ch]) => `<div class="ctrl"><div class="row sb"><span class="lbl">${lab}</span>${k === SIZE_KEY[d.product] ? `<span class="sm muted">${SIZE_AXIS[d.product]}</span>` : ''}</div><div class="chips">${ch.map((c, j) => chip('opt', k + '|' + j, d.opts[k] === j, c[0], (c[2] ? ` <small class="dim">${c[2]}</small>` : '') + (c[1] ? ` <small>+${rp(c[1])}</small>` : ''))).join('')}</div>
+    ${k === SIZE_KEY[d.product] && d.product === 'custom' ? `<div class="row g8 mt12 wr"><span class="sm">Atau isi ukuran sendiri:</span><input class="inp" style="width:90px" inputmode="decimal" placeholder="lebar" value="${esc(d.customW)}" data-in="cw" aria-label="Lebar dalam cm"><span>×</span><input class="inp" style="width:90px" inputmode="decimal" placeholder="tinggi" value="${esc(d.customH)}" data-in="ch" aria-label="Tinggi dalam cm"><span class="sm">cm</span></div>` : ''}</div>`).join('');
+  const motifCtrl = `<p class="sm muted">Motif selalu diambil dari kain bajumu sendiri. Geser motif langsung di gambar untuk memilih bagian kain yang tampil di setiap bagian produk${d.photos.length > 1 ? ', dan pilih foto kain untuk tiap bagian' : ''}.</p>
+    ${d.photos.length > 1 ? '' : '<p class="note mt8">Ingin memakai beberapa kain, misalnya kemeja dan celana? Unggah lebih dari satu foto di langkah 1.</p>'}
+    <div class="ctrl"><label class="field"><span>Catatan motif <span class="muted" style="font-weight:500">(opsional)</span></span><input class="inp" maxlength="120" placeholder="Misalnya: pakai bagian kotak-kotak kerah untuk tali" value="${esc(d.motif.note)}" data-in="motifNote"></label></div>`;
+  const embCtrl = TEXT_OK[d.product] ? `<div class="ctrl"><label class="field"><span>Teks bordir <span class="muted" style="font-weight:500">(opsional, maks. 14 karakter, +${rp(10000)})</span></span><input class="inp" maxlength="14" placeholder="Misalnya: SMA 3 · 24" value="${esc(d.text)}" data-in="text"></label>
+      <div class="emb mt12" id="embBox" ${d.text.trim() ? '' : 'hidden'}>${embSVG(d, 'em')}</div>
+      <div id="embOpts" ${d.text.trim() ? '' : 'hidden'}>
+        <span class="lbl" style="display:block;margin-top:14px">Gaya huruf</span><div class="chips mt8">${Object.entries(FONTS).map(([k, f]) => chip('embFont', k, d.embFont === k, `<span style="font-family:${f[1].replace(/"/g, "'")};font-weight:${f[2]};font-size:${k === 'dancing' ? 18 : 22}px;line-height:1">${esc(d.text.trim() || f[0])}</span> <small>${f[0]}</small>`)).join('')}</div>
+        <span class="lbl" style="display:block;margin-top:14px">Warna benang · <span class="muted" style="font-weight:500">${THREADS[d.embColor][0]}</span></span><div class="row g12 wr mt8">${Object.entries(THREADS).map(([k, t]) => `<button class="sw" style="background:${t[1]}" data-act="embColor" data-arg="${k}" aria-pressed="${d.embColor === k}" aria-label="Benang ${t[0]}"></button>`).join('')}</div>
+        <span class="lbl" style="display:block;margin-top:14px">Posisi bordir</span><div class="chips mt8">${(EMB_POS[d.product] || []).map(([k, n]) => chip('embPos', k, d.embPos === k, n)).join('')}</div></div></div>` : '';
+  const stageTop = `<div class="layout drag" id="layoutBox">${layoutSVG(d, 'lv', d.motif.sel)}</div>${motifPanel(d)}`;
   return `<div class="grid g-2 dgrid" style="gap:28px;align-items:start">
     <div><p class="kick c-orange">Langkah 4 · Kustomisasi</p><h1 class="h2">Desain ${p.name.toLowerCase()}-mu</h1>
-      <div class="ctrl"><div class="row sb"><span class="lbl">Produk</span></div><div class="chips">${PRODUCTS.filter(x => S.prodOn[x.key] && fabricOf(d) >= x.need).map(x => `<button class="chip" data-act="pickProduct" data-arg="${x.key}" aria-pressed="${x.key === d.product}">${x.name}</button>`).join('')}</div></div>
+      <div class="ctrl"><div class="row sb"><span class="lbl">Produk</span></div><div class="chips">${PRODUCTS.filter(x => S.prodOn[x.key] && fabricOf(d) >= x.need).map(x => chip('pickProduct', x.key, x.key === d.product, x.name)).join('')}</div></div>
       ${controls}
-      <div class="ctrl"><div class="row sb"><span class="lbl">Warna aksen</span><span class="sm muted">${CNAME[d.accent]}</span></div><div class="row g12 wr">${Object.keys(COLORS).map(c => `<button class="sw" style="background:${COLORS[c]}" data-act="accent" data-arg="${c}" aria-pressed="${d.accent === c}" aria-label="${CNAME[c]}"></button>`).join('')}</div></div>
-      ${TEXT_OK[d.product] ? `<div class="ctrl"><label class="field"><span>Teks bordir <span class="muted" style="font-weight:500">(opsional, maks. 14 karakter, +${rp(10000)})</span></span><input class="inp" maxlength="14" placeholder="Misalnya: SMA 3 · 24" value="${esc(d.text)}" data-in="text"></label></div>` : ''}
+      <h2 class="h4 mt24">Motif kain</h2>${motifCtrl}
+      ${embCtrl ? `<h2 class="h4 mt24">Bordir</h2>${embCtrl}` : ''}
       ${d.product === 'custom' ? `<div class="ctrl"><label class="field"><span>Ceritakan idemu</span><textarea class="ta" maxlength="400" placeholder="Misalnya: dompet kecil untuk kartu, pakai kain saku kemeja di bagian depan" data-in="custom">${esc(d.custom)}</textarea><span class="tiny muted">Minimal 15 karakter. Crafter akan mengirim penawaran harga.</span></label></div>` : ''}
       <div class="row wr g8 mt16"><button class="btn btn-ghost btn-sm" data-act="resetDesign">${ic('Refresh', 16)} Atur ulang</button><button class="btn btn-sec btn-sm" data-act="saveDesign">Simpan desain</button></div>
     </div>
-    <div class="side"><div class="stage" style="--acc:${COLORS[d.accent]}">
-      <div class="stage-top"><div class="stage-img" style="transform:scale(${scale}) rotate(-2deg)">${prodImg(d.product)}</div>
-        ${TEXT_OK[d.product] ? `<div class="stage-label" id="stLabel">${esc(d.text.trim() || 'ReCraft')}</div>` : ''}
-        <div class="stage-from">${d.photos[0] ? `<img src="${d.photos[0].src}" alt="">` : `<svg viewBox="0 0 300 300" fill="none">${ILL[GARMENTS[d.garment][1]]}</svg>`}Dari ${esc(d.garment.toLowerCase())}-mu</div></div>
-      <div class="stage-bot"><div class="sm muted" id="stOpts">${esc(chosen)} · aksen ${CNAME[d.accent].toLowerCase()}</div><div class="row sb"><span class="muted">Estimasi harga produk</span><span class="price" id="stPrice">${rp(pr.productTotal)}</span></div>
-      <p class="note">Pratinjau memakai foto contoh produk. Hasil asli memakai kain dari bajumu, jadi motif dan warnanya mengikuti kainmu.</p></div></div></div>
+    <div class="side"><div class="stage">${stageTop}
+      <div class="stage-bot"><div class="row sb wr"><span class="muted sm">Ukuran</span><b class="sm" id="stSize">${esc(sizeText(D))}</b></div>
+        <div class="sm muted" id="stMotif">${esc(motifText(D))}</div>
+        <div class="row sb"><span class="muted">Estimasi harga produk</span><span class="price" id="stPrice">${rp(pr.productTotal)}</span></div>
+        <p class="note">Gambar ini memakai foto kain yang kamu unggah. Posisi motif yang kamu atur ikut tersimpan dan menjadi panduan crafter saat memotong kain.</p></div></div></div>
   </div>`;
 }
+function motifPanel(d) {
+  const D = designOf(d), vp = visibleParts(D);
+  if (!vp.includes(d.motif.sel)) d.motif.sel = vp[0];
+  const sel = d.motif.sel, p = posOf(D, sel);
+  const nb = (dir, icn, lab) => `<button class="iconbtn" style="width:40px;height:40px" data-act="mnudge" data-arg="${dir}" aria-label="Geser motif ke ${lab}">${ic(icn, 18)}</button>`;
+  return `<div class="mpanel"><p class="b row g8">${ic('Move', 18)} Atur posisi motif</p>
+    <p class="tiny muted mt8">Geser motif langsung di gambar dengan mouse atau jari. Ketuk bagian produk untuk memilihnya.</p>
+    <div class="chips mt12">${vp.map(pt => `<button class="chip" data-act="msel" data-arg="${pt}" aria-pressed="${pt === sel}">${PART_LABEL[pt]}${D.photos.length > 1 ? ` <small>foto ${(((D.motif.src || {})[pt]) || 0) + 1}</small>` : ''}</button>`).join('')}</div>
+    <p class="tiny mt12">Sedang diatur: <b>${PART_LABEL[sel]}</b></p>
+    ${D.photos.length > 1 ? `<div class="row g8 wr mt8"><span class="tiny b" style="width:56px">Kain</span>${D.photos.map((ph, i) => `<button class="fabchip" data-act="msrc" data-arg="${i}" aria-pressed="${((((D.motif.src || {})[sel]) || 0) === i)}" aria-label="Pakai foto kain ${i + 1} untuk ${PART_LABEL[sel]}"><img src="${ph}" alt=""><span>${i + 1}</span></button>`).join('')}</div>` : ''}
+    <div class="slider mt8"><span class="tiny b">Ukuran</span><input type="range" min="40" max="250" step="5" value="${Math.round(p.s * 100)}" data-in="mscale" aria-label="Ukuran motif"><span class="tiny" id="mscaleV">${Math.round(p.s * 100)}%</span></div>
+    <div class="slider"><span class="tiny b">Putar</span><input type="range" min="-90" max="90" step="5" value="${p.r}" data-in="mrot" aria-label="Putar motif"><span class="tiny" id="mrotV">${p.r}°</span></div>
+    <div class="row g8 wr mt8"><span class="tiny b" style="width:56px">Geser</span>${nb('kiri', 'ChevronLeft', 'kiri')}${nb('atas', 'ChevronUp', 'atas')}${nb('bawah', 'ChevronDown', 'bawah')}${nb('kanan', 'ChevronRight', 'kanan')}</div>
+    <div class="row g8 wr mt8"><button class="btn btn-ghost btn-sm" data-act="mreset">${ic('Refresh', 16)} Atur ulang bagian ini</button><button class="btn btn-ghost btn-sm" data-act="mresetAll">Atur ulang semua</button></div></div>`;
+}
 function fPreview() {
-  const d = S.draft, p = PROD[d.product];
-  const spec = (OPTS[d.product] || []).map(([k, lab, ch]) => [lab, ch[d.opts[k]][0]]).concat([['Warna aksen', CNAME[d.accent]]]).concat(TEXT_OK[d.product] ? [['Teks bordir', d.text.trim() || 'Tanpa teks']] : []).concat(d.product === 'custom' ? [['Ide', d.custom]] : []);
-  return `<h1 class="h2">Pratinjau desain</h1><p class="muted mt8">Periksa lagi sebelum lanjut. Kain belum akan dipotong sampai kamu membayar dan crafter mengonfirmasi desain dengan kain asli.</p>
-    <div class="row g16 mt24 wr" style="align-items:stretch">
-      <figure style="margin:0;flex:1 1 200px" class="col g8"><div class="pimg" style="border:2px solid var(--dark);border-radius:20px">${d.photos[0] ? `<img src="${d.photos[0].src}" alt="Foto bajumu">` : ill(GARMENTS[d.garment][1])}</div><figcaption class="pill soft-grey" style="align-self:flex-start">Sebelum: ${esc(d.garment)}</figcaption></figure>
-      <div style="display:grid;place-items:center" class="c-orange">${ic('ArrowRight', 32)}</div>
-      <figure style="margin:0;flex:1 1 200px" class="col g8"><div class="pimg" style="border:2px solid var(--dark);border-radius:20px;box-shadow:6px 6px 0 ${COLORS[d.accent]}">${prodImg(d.product)}</div><figcaption class="pill soft-${p.color}" style="align-self:flex-start">Sesudah: ${p.name}</figcaption></figure>
+  const d = S.draft, p = PROD[d.product], D = designOf(d);
+  const spec = (OPTS[d.product] || []).map(([k, lab, ch]) => [lab, optLabel(ch[d.opts[k]])])
+    .concat([['Ukuran detail', sizeText(D)], ['Motif', motifText(D)]])
+    .concat(TEXT_OK[d.product] ? [['Bordir', embText(D)]] : [])
+    .concat(d.product === 'custom' ? [['Ide', d.custom]] : []);
+  return `<h1 class="h2">Pratinjau desain</h1><p class="muted mt8">Periksa lagi sebelum lanjut. Kain belum akan dipotong sampai pembayaran dikonfirmasi dan crafter mencocokkan desain dengan kain asli.</p>
+    <div class="grid g-2 mt24" style="align-items:center">
+      <figure style="margin:0" class="col g8"><div class="pimg" style="border:2px solid var(--dark);border-radius:20px">${d.photos[0] ? `<img src="${d.photos[0].src}" alt="Foto bajumu">` : ill(GARMENTS[d.garment][1])}</div><figcaption class="pill soft-grey" style="align-self:flex-start">Sebelum: ${esc(d.garment)}</figcaption></figure>
+      <figure style="margin:0" class="col g8"><div class="layout" style="border:2px solid var(--dark);border-radius:20px;box-shadow:6px 6px 0 ${COLORS[d.accent]}">${layoutSVG(d, 'pv')}</div><figcaption class="pill soft-${p.color}" style="align-self:flex-start">Sesudah: ${p.name}</figcaption></figure>
     </div>
-    <div class="tblwrap mt24"><table class="tbl"><tbody>${spec.map(s => `<tr><td class="muted" style="width:40%">${esc(s[0])}</td><td class="b">${esc(s[1])}</td></tr>`).join('')}<tr><td class="muted">Waktu pengerjaan</td><td class="b">${p.time}</td></tr></tbody></table></div>
+    ${TEXT_OK[d.product] && d.text.trim() ? `<div class="emb mt16" style="max-width:420px">${embSVG(d, 'pe')}</div>` : ''}
+    <div class="tblwrap mt24"><table class="tbl"><tbody>${spec.map(s => `<tr><td class="muted" style="width:34%">${esc(s[0])}</td><td class="b">${esc(s[1])}</td></tr>`).join('')}<tr><td class="muted">Waktu pengerjaan</td><td class="b">${p.time}</td></tr></tbody></table></div>
     <button class="btn btn-sec btn-sm mt16" data-go="buat-desain">${ic('Edit', 16)} Ubah desain</button>`;
 }
 function fStory() {
@@ -1163,11 +1412,15 @@ function fStory() {
     <div class="ctrl"><span class="lbl">Siapa yang bisa membaca?</span><div class="chips mt8"><button class="chip" data-act="privacy" data-arg="pribadi" aria-pressed="${s.privacy === 'pribadi'}">${ic('Shield', 16)} Pribadi, hanya lewat tag</button><button class="chip" data-act="privacy" data-arg="publik" aria-pressed="${s.privacy === 'publik'}">${ic('Users', 16)} Publik di galeri ReCraft</button></div></div>`;
 }
 function fTag() {
-  const d = S.draft;
-  return `<div class="grid g-2" style="gap:28px;align-items:center"><div><h1 class="h2">Pilih Memory Tag</h1><p class="muted mt8">Tag dijahit pada produkmu dan membuka foto sebelum, foto sesudah, serta ceritamu.</p>
-    <div class="col g12 mt24">${Object.entries(TAGS).map(([k, t]) => `<button class="opt" data-act="tag" data-arg="${k}" aria-pressed="${d.tag === k}"><span class="row g12"><span class="tile bg-${k === 'qr' ? 'pink' : k === 'nfc' ? 'purple' : 'tq'}" style="width:44px;height:44px">${ic(k === 'nfc' ? 'Nfc' : 'QR', 22)}</span><span style="flex:1"><b>${t[0]}</b><br><span class="sm muted">${t[2]}</span></span><b style="margin-right:34px">${rp(t[1])}</b></span></button>`).join('')}</div>
-    <p class="note mt12">NFC butuh HP yang mendukung NFC. Kalau ragu, pilih QR + NFC.</p></div>
-    <div>${tagVisual(d.tag, d.story.title, 'draft-' + d.story.title)}<p class="note mt16" style="text-align:center">Pratinjau tag. Isi tag bisa diubah dari Cerita Saya.</p></div></div>`;
+  const d = S.draft, label = d.tagLabel || d.story.title;
+  return `<div class="grid g-2" style="gap:28px;align-items:center"><div><h1 class="h2">Memory Tag</h1><p class="muted mt8">Setiap produk ReCraft dijahitkan Memory Tag: label kain berkode QR yang menyimpan kenangan di balik bajumu.</p>
+    <ol class="col g12 mt24" style="padding-left:20px;margin-bottom:0">
+      <li>Pindai kode QR di label dengan kamera HP mana pun.</li>
+      <li>Terbuka halaman berisi foto sebelum, foto sesudah, dan ceritamu.</li>
+      <li>Cerita bisa kamu edit kapan saja dari Cerita Saya. Tag-nya tetap sama.</li></ol>
+    <label class="field mt24"><span>Tulisan di label <span class="muted" style="font-weight:500">(maks. 24 karakter)</span></span><input class="inp" maxlength="24" placeholder="${esc(d.story.title || 'Judul ceritamu')}" value="${esc(d.tagLabel)}" data-in="tagLabel"></label>
+    <div class="card soft pad-s mt16 row sb"><span><b>Memory Tag</b><br><span class="sm muted">Sudah termasuk di setiap pesanan</span></span><b class="price">${rp(TAG_PRICE)}</b></div></div>
+    <div>${tagVisual('qr', label, 'draft-' + label)}<p class="note mt16" style="text-align:center">Pratinjau label Memory Tag.</p></div></div>`;
 }
 function fPickup() {
   const d = S.draft, pk = d.pickup, days = pickupDays();
@@ -1193,7 +1446,7 @@ function letterHTML(x) {
   const sig = x.signed ? (x.sig ? `<img class="sigimg" src="${x.sig}" alt="Tanda tangan">` : `<div class="sigtyped">${esc(x.typed)}</div>`) : '<div style="height:70px"></div>';
   return `<article class="letter"><h3>SURAT PERNYATAAN PERSETUJUAN HASIL PRODUK</h3><p style="text-align:center" class="sm muted">ReCraft · Nomor: ${/^RC-/.test(x.code) ? esc(x.code) + '/SPP/RC/' + (x.at || TODAY).getFullYear() : 'dibuat setelah pembayaran'}</p>
     <p class="mt16">Yang bertanda tangan di bawah ini:</p>
-    <table><tr><td>Nama</td><td>: ${esc(x.name)}</td></tr><tr><td>Email</td><td>: ${esc(x.email)}</td></tr><tr><td>No. HP</td><td>: ${esc(x.phone || '-')}</td></tr><tr><td>Kode pesanan</td><td>: ${esc(x.code)}</td></tr><tr><td>Produk</td><td>: ${esc(x.product)}</td></tr><tr><td>Bahan asal</td><td>: ${esc(x.from)}</td></tr></table>
+    <table><tr><td>Nama</td><td>: ${esc(x.name)}</td></tr><tr><td>Email</td><td>: ${esc(x.email)}</td></tr><tr><td>No. HP</td><td>: ${esc(x.phone || '-')}</td></tr><tr><td>Kode pesanan</td><td>: ${esc(x.code)}</td></tr><tr><td>Produk</td><td>: ${esc(x.product)}</td></tr>${x.size ? `<tr><td>Ukuran</td><td>: ${esc(x.size)}</td></tr>` : ''}${x.motif ? `<tr><td>Motif</td><td>: ${esc(x.motif)}</td></tr>` : ''}${x.emb ? `<tr><td>Bordir</td><td>: ${esc(x.emb)}</td></tr>` : ''}<tr><td>Bahan asal</td><td>: ${esc(x.from)}</td></tr></table>
     <p>dengan ini menyatakan bahwa:</p>
     <ol><li>Saya adalah pemilik sah pakaian atau kain yang saya serahkan, dan saya mengizinkan ReCraft memotong serta menjahitnya ulang menjadi produk di atas.</li>
     <li>Saya memahami bahwa produk dibuat dengan tangan dari kain bekas, sehingga warna, motif, posisi potongan, dan tekstur bisa sedikit berbeda dari pratinjau desain.</li>
@@ -1206,8 +1459,8 @@ function letterHTML(x) {
     <p class="note mt16">Tanda tangan elektronik mengacu pada Pasal 11 UU No. 11 Tahun 2008 tentang ITE. Ini template untuk prototipe, periksa kembali sebelum dipakai sungguhan.</p></article>`;
 }
 function draftLetter() {
-  const d = S.draft, a = d.agree;
-  return { code:draftCode(), name:S.user.name, email:S.user.email, phone:S.user.phone, product:PROD[d.product].name + ' (' + optSummary(d.product, d.opts) + ')', from:d.count + ' × ' + d.garment + ', ' + d.material, leftover:a.leftover, signed:a.signed, sig:a.sig, typed:a.typed, at:a.at };
+  const d = S.draft, a = d.agree, D = designOf(d);
+  return { code:draftCode(), name:S.user.name, email:S.user.email, phone:S.user.phone, product:PROD[d.product].name + ' (' + optSummary(d.product, d.opts) + ')', size:sizeText(D), motif:motifText(D), emb:TEXT_OK[d.product] ? embText(D) : '', from:d.count + ' × ' + d.garment + ', ' + d.material, leftover:a.leftover, signed:a.signed, sig:a.sig, typed:a.typed, at:a.at };
 }
 function fAgree() {
   const a = S.draft.agree;
@@ -1224,26 +1477,32 @@ function fAgree() {
 }
 function fPay() {
   const d = S.draft, pr = priceOf(d);
-  return `<h1 class="h2">Pembayaran</h1><p class="muted mt8">Ini simulasi. Tidak ada uang yang benar-benar ditarik.</p>
-    <div class="col g12 mt24">${Object.entries(PAY).map(([k, v]) => `<button class="opt" data-act="pay" data-arg="${k}" aria-pressed="${d.pay === k}"><span class="row g12"><span class="tile bg-purple" style="width:44px;height:44px">${ic(k === 'ewallet' ? 'Phone' : 'Card', 22)}</span><b>${v[0]}</b></span></button>`).join('')}</div>
-    <div class="ctrl"><span class="lbl">${d.pay === 'kartu' ? 'Jenis kartu' : d.pay === 'ewallet' ? 'Pilih e-wallet' : 'Pilih bank'}</span><div class="chips mt8">${PAY[d.pay][1].map(b => `<button class="chip" data-act="payWith" data-arg="${b}" aria-pressed="${d.payWith === b}">${b}</button>`).join('')}</div></div>
+  return `<h1 class="h2">Pembayaran lewat WhatsApp</h1><p class="muted mt8">Pembayaran ReCraft dilakukan lewat chat WhatsApp dengan admin, supaya kamu bisa bertanya langsung sebelum membayar.</p>
+    <ol class="col g12 mt24" style="padding-left:20px">
+      <li>Klik tombol di bawah. Pesananmu tersimpan dengan status <b>Menunggu bayar</b>.</li>
+      <li>WhatsApp terbuka dengan pesan berisi rincian pesanan. Kirim pesan itu ke admin ReCraft.</li>
+      <li>Admin membalas dengan cara pembayaran (transfer bank atau QRIS) dan mengonfirmasi setelah kamu membayar.</li>
+      <li>Setelah lunas, crafter mulai memproses pesananmu.</li></ol>
+    <div class="card soft mt16"><b>Rincian</b><div class="mt8">${pr.all.map(l => `<div class="sumline"><span>${esc(l[0])}</span><span>${rp(l[1])}</span></div>`).join('')}</div><div class="total"><span>Total</span><span>${rp(pr.total)}</span></div></div>
     <div class="card soft mt16"><b>Dikirim ke</b><p class="muted sm mt8">${esc(S.user.name)} · ${esc(S.user.phone || '-')}<br>${esc(d.pickup.address || S.user.address || 'Alamat di profil')}</p></div>
     <div class="okbox mt16">${ic('Doc', 18)}Surat persetujuan sudah ditandatangani.</div>
-    <button class="btn btn-cta btn-block mt24" data-act="placeOrder" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Memproses pembayaran…' : 'Bayar ' + rp(pr.total)}</button>${isReal() ? '<p class="note mt8">Pesanan akan disimpan ke database ReCraft.</p>' : ''}`;
+    <button class="btn btn-wa btn-block mt24" data-act="placeOrder" ${S.busy ? 'disabled' : ''}>${ic('Chat', 18)} ${S.busy ? 'Menyimpan pesanan…' : 'Buat pesanan dan lanjut ke WhatsApp'}</button>
+    ${ADMIN_WA ? '' : '<p class="note mt8">Nomor WhatsApp admin belum diatur di website, jadi tombol WhatsApp belum bisa dibuka.</p>'}
+    ${isReal() ? '<p class="note mt8">Pesanan akan disimpan ke database ReCraft.</p>' : ''}`;
 }
-
 function vSuccess(m) {
   const o = findOrder(m[1]); if (!o) { const w = waitData('orders'); if (w) return w; go('pesanan'); return null; }
   const next = o.pickup.method === 'jemput' ? `Kurir ReCraft akan menjemput kain pada <b>${tglh(o.pickup.date)}, pukul ${o.pickup.slot}</b>. Siapkan kain sesuai checklist dan tempel label kode pesanan.` : o.pickup.method === 'antar' ? `Antar kainmu ke <b>${STUDIO}</b> (Senin–Sabtu, 09.00–17.00) dan sebutkan kode pesanan.` : `Kirim paket kain ke <b>${STUDIO}</b>, lalu masukkan nomor resi di halaman pelacakan.`;
   return `<section class="wrap band"><div class="card col g16" style="max-width:720px;margin:0 auto;text-align:center;align-items:center;overflow:hidden;padding-top:0">
     <div style="width:calc(100% + 48px)">${quilt()}</div>
     <div class="tile bg-tq mt16" style="width:76px;height:76px;border-radius:24px">${ic('Check', 38)}</div>
-    <h1 class="h2">Pesananmu sudah kami terima!</h1><p class="muted">Kode pesanan <b>${o.id}</b> · total ${rp(o.total)}</p>
-    <div class="row g16 wr" style="justify-content:center"><div class="tile" style="width:96px;height:96px;overflow:hidden">${prodImg(o.product)}</div><div style="text-align:left"><b>${esc(o.name)}</b><div class="sm muted">${esc(optSummary(o.product, o.opts))}</div><div class="sm muted">Memory Tag ${TAGS[o.tag][0]}</div></div></div>
-    <div class="card soft" style="text-align:left;width:100%"><b>Langkah berikutnya</b><p class="mt8">${next}</p></div>
+    <h1 class="h2">Pesananmu sudah dibuat!</h1><p class="muted">Kode pesanan <b>${o.id}</b> · total ${rp(o.total)} · ${badge(o)}</p>
+    <div class="row g16 wr" style="justify-content:center"><div class="tile" style="width:96px;height:96px;overflow:hidden">${prodImg(o.product)}</div><div style="text-align:left"><b>${esc(o.name)}</b><div class="sm muted">${esc(sizeText(designOf(o)))}</div><div class="sm muted">${esc(motifText(designOf(o)))}</div></div></div>
+    ${o.pay === 'menunggu' ? `<div class="card col g12" style="text-align:left;width:100%;background:#E7F8EE;border-color:#1E7D46"><b class="h4">Langkah berikutnya: bayar lewat WhatsApp</b><p class="sm">Kirim pesan berisi rincian pesanan ke admin ReCraft. Admin akan membalas dengan cara pembayaran dan mengonfirmasi setelah kamu membayar. Kalau WhatsApp belum terbuka, klik tombol ini.</p>${waBtn(o)}
+      <details><summary class="sm b" style="cursor:pointer">Lihat isi pesan</summary><pre class="sm" style="white-space:pre-wrap;font-family:inherit;background:#fff;border-radius:12px;padding:12px;margin:8px 0 0">${esc(waText(o))}</pre></details></div>` : ''}
+    <div class="card soft" style="text-align:left;width:100%"><b>Penyerahan kain</b><p class="mt8">${next}</p></div>
     <div class="row wr g12" style="justify-content:center"><a class="btn btn-pri" href="#lacak-${o.id}" data-go="lacak-${o.id}">Lacak pesanan</a><a class="btn btn-sec" href="#dashboard" data-go="dashboard">Ke dashboard</a></div></div></section>`;
 }
-
 function vOrders() {
   const os = myOrders();
   const tabs = ['Semua', 'Aktif', 'Selesai', 'Dibatalkan'];
@@ -1258,15 +1517,18 @@ function vOrders() {
 function vOrder(m) {
   const o = findOrder(m[1]); if (!o || o.email !== S.user.email) { const w = !o && waitData('orders'); if (w) return w; go('pesanan'); return null; }
   const p = PROD[o.product];
-  const spec = (OPTS[o.product] || []).map(([k, lab, ch]) => [lab, ch[o.opts[k]] ? ch[o.opts[k]][0] : '-']).concat([['Warna aksen', CNAME[o.accent]], ['Memory Tag', TAGS[o.tag][0]], ['Penyerahan kain', PICK[o.pickup.method][0]], ['Bahan asal', o.garment + ', ' + o.material]]).concat(o.text ? [['Teks bordir', o.text]] : []);
+  const D = designOf(o);
+  const spec = (OPTS[o.product] || []).map(([k, lab, ch]) => [lab, optLabel(ch[o.opts[k]]) || '-']).concat([['Ukuran detail', sizeText(D)], ['Motif', motifText(D)]]).concat(TEXT_OK[o.product] ? [['Bordir', embText(D)]] : []).concat([['Memory Tag', 'Ya' + (o.tagLabel ? ', tulisan: ' + o.tagLabel : '')], ['Penyerahan kain', PICK[o.pickup.method][0]], ['Pembayaran', o.pay === 'menunggu' ? 'Menunggu bayar (lewat WhatsApp admin)' : 'Lunas'], ['Bahan asal', o.garment + ', ' + o.material]]);
   const ag = o.agreement;
   return `<section class="wrap band" style="padding-top:36px"><a class="linkbtn" href="#pesanan" data-go="pesanan">${ic('ArrowLeft', 16)} Pesanan saya</a>
     <div class="row sb wr mt16"><div><h1 class="h2">${esc(o.name)}</h1><div class="row g8 mt8">${badge(o)}<span class="sm muted">${o.id} · dipesan ${tgl(o.date)}</span></div></div>${o.cancelled ? '' : `<a class="btn btn-pri" href="#lacak-${o.id}" data-go="lacak-${o.id}">Lacak pesanan</a>`}</div>
     <div class="grid g-2 mt24" style="align-items:start">
-      <div class="col g16"><div class="row g16"><div class="pimg" style="width:50%;border:2px solid var(--dark);border-radius:20px">${beforeImg(o.before)}</div><div class="pimg" style="width:50%;border:2px solid var(--dark);border-radius:20px">${prodImg(o.product)}</div></div>
+      <div class="col g16"><div class="row g16"><div class="pimg" style="width:50%;border:2px solid var(--dark);border-radius:20px">${beforeImg(o.before)}</div><div class="layout" style="width:50%;border:2px solid var(--dark);border-radius:20px">${layoutSVG(o, 'od')}</div></div>
+        ${TEXT_OK[o.product] && o.text ? `<div class="emb">${embSVG(o, 'oe')}</div>` : ''}
+        ${o.pay === 'menunggu' ? `<div class="card col g8" style="background:#E7F8EE;border-color:#1E7D46"><b>Menunggu pembayaran</b><p class="sm">Selesaikan pembayaran lewat WhatsApp admin ReCraft.</p>${waBtn(o, 'btn-sm')}</div>` : ''}
         <div class="tblwrap"><table class="tbl"><tbody>${spec.map(s => `<tr><td class="muted" style="width:42%">${esc(s[0])}</td><td class="b">${esc(s[1])}</td></tr>`).join('')}<tr><td class="muted">Total</td><td class="b">${rp(o.total)}</td></tr></tbody></table></div></div>
       <div class="col g16">${o.story ? `<div class="card bg-pink col"><b>${ic('Heart', 18)} ${esc(o.story.title)}</b><p>“${esc(o.story.text)}”</p><span class="sm muted">${esc(o.story.moment || '')} ${esc(o.story.year || '')} · ${o.story.privacy === 'publik' ? 'Publik' : 'Pribadi'}</span></div>` : ''}
-        ${ag ? `<details class="card"><summary class="b" style="cursor:pointer">${ic('Doc', 18)} Surat persetujuan · ditandatangani ${tgl(ag.at)}</summary><div class="mt16">${letterHTML({ code:o.id, name:ag.name, email:o.email, phone:S.user.phone, product:p.name + ' (' + optSummary(o.product, o.opts) + ')', from:o.garment + ', ' + o.material, leftover:ag.leftover, signed:true, sig:ag.sig, typed:ag.typed, at:ag.at })}</div></details>` : `<div class="card soft"><p class="sm muted">Pesanan lama ini dibuat sebelum surat persetujuan digital tersedia.</p></div>`}
+        ${ag ? `<details class="card"><summary class="b" style="cursor:pointer">${ic('Doc', 18)} Surat persetujuan · ditandatangani ${tgl(ag.at)}</summary><div class="mt16">${letterHTML({ code:o.id, name:ag.name, email:o.email, phone:S.user.phone, product:p.name + ' (' + optSummary(o.product, o.opts) + ')', from:o.garment + ', ' + o.material, leftover:ag.leftover, size:sizeText(D), motif:motifText(D), emb:TEXT_OK[o.product] ? embText(D) : '', signed:true, sig:ag.sig, typed:ag.typed, at:ag.at })}</div></details>` : `<div class="card soft"><p class="sm muted">Pesanan lama ini dibuat sebelum surat persetujuan digital tersedia.</p></div>`}
         <div class="card soft"><b>Bantuan</b><p class="sm muted mt8">Ada masalah dengan pesanan ini? Hubungi kami lewat chat dan sebutkan kode ${o.id}.</p><button class="btn btn-sec btn-sm mt12" data-act="chat">Buka chat</button></div></div>
     </div></section>`;
 }
@@ -1275,7 +1537,8 @@ function vTrack(m) {
   if (o.cancelled) { go('pesanan-' + o.id); return null; }
   const pct = Math.round(o.step / 7 * 100), pk = o.pickup;
   const tl = [0,1,2,3,4,5,6,7].map(s => { const h = o.history.find(x => x.s === s); const cls = s < o.step ? 'done' : s === o.step ? (o.step === 7 ? 'done' : 'cur') : 'up';
-    return `<li class="${cls}"><span class="n">${s < o.step || o.step === 7 ? ic('Check', 16) : s === o.step ? ic('Clock', 16) : s + 1}</span><div><b>${stepName(o, s)}</b><p class="sm muted">${stepDesc(o, s)}</p>${h ? `<p class="tiny muted mt8">${tgl(h.at)} · ${jam(h.at)}</p>` : ''}</div></li>`; }).join('');
+    const unpaid0 = s === 0 && o.pay === 'menunggu';
+    return `<li class="${cls}"><span class="n">${s < o.step || o.step === 7 ? ic('Check', 16) : s === o.step ? ic('Clock', 16) : s + 1}</span><div><b>${unpaid0 ? 'Pesanan dibuat, menunggu pembayaran' : stepName(o, s)}</b><p class="sm muted">${unpaid0 ? 'Bayar lewat WhatsApp admin. Crafter mulai bekerja setelah pembayaran dikonfirmasi.' : stepDesc(o, s)}</p>${h ? `<p class="tiny muted mt8">${tgl(h.at)} · ${jam(h.at)}</p>` : ''}</div></li>`; }).join('');
   let pickCard = '';
   if (pk.method === 'jemput') {
     const st = o.step >= 1 ? 'Sudah dijemput' : pk.kurir ? 'Kurir ditugaskan: ' + pk.kurir : 'Menunggu kurir ditugaskan';
@@ -1287,6 +1550,7 @@ function vTrack(m) {
   } else {
     pickCard = `<div class="card col g8"><b>${ic('Box', 18)} Kirim lewat kurir${pk.courier ? ' · ' + esc(pk.courier) : ''}</b><p class="sm">Kirim ke ${STUDIO}</p>${o.step === 0 ? `<label class="field"><span>Nomor resi</span><div class="row g8"><input class="inp" id="resi" placeholder="Masukkan nomor resi" value="${esc(pk.resi)}"><button class="btn btn-sec btn-sm" data-act="saveResi" data-arg="${o.id}">Simpan</button></div></label>` : `<span class="pill soft-tq" style="align-self:flex-start">Resi ${esc(pk.resi || 'tercatat')}</span>`}</div>`;
   }
+  const payCard = o.pay === 'menunggu' ? `<div class="card col g12" style="background:#E7F8EE;border-color:#1E7D46"><div class="row sb wr"><b class="h4">Menunggu pembayaran</b><span class="pill soft-orange">Belum lunas</span></div><p class="sm">Kirim rincian pesanan ke admin ReCraft lewat WhatsApp. Admin akan membalas dengan cara pembayaran (transfer bank atau QRIS) lalu mengonfirmasi. Pesanan mulai diproses setelah lunas.</p>${waBtn(o)}</div>` : '';
   let qcCard = '';
   if (o.step === 5) {
     const deadline = addDays(o.history.filter(x => x.s === 5).slice(-1)[0]?.at || TODAY, 2);
@@ -1300,18 +1564,18 @@ function vTrack(m) {
   const extra = o.history.filter(x => x.extra);
   const story = S.stories.find(s => s.order === o.id);
   return `<section class="wrap band" style="padding-top:36px"><a class="linkbtn" href="#pesanan" data-go="pesanan">${ic('ArrowLeft', 16)} Pesanan saya</a>
-    <div class="card row g24 wr mt16">${ring(pct)}<div style="flex:1 1 240px"><div class="row wr g8"><h1 class="h3">${esc(o.name)}</h1>${badge(o)}</div><p class="muted sm mt8">${o.id} · crafter ${esc(o.crafter)} · estimasi selesai ${tgl(o.due)}</p><p class="mt8"><b>${stepName(o, o.step)}</b> · ${stepDesc(o, o.step)}</p></div><div class="tile" style="width:96px;height:96px;overflow:hidden">${prodImg(o.product)}</div></div>
+    <div class="card row g24 wr mt16">${ring(pct)}<div style="flex:1 1 240px"><div class="row wr g8"><h1 class="h3">${esc(o.name)}</h1>${badge(o)}</div><p class="muted sm mt8">${o.id} · crafter ${esc(o.crafter)} · estimasi selesai ${tgl(o.due)}</p><p class="mt8">${o.pay === 'menunggu' ? '<b>Menunggu pembayaran</b> · Selesaikan pembayaran lewat WhatsApp admin.' : `<b>${stepName(o, o.step)}</b> · ${stepDesc(o, o.step)}`}</p></div><div class="tile" style="width:96px;height:96px;overflow:hidden">${prodImg(o.product)}</div></div>
     <div class="grid g-2 mt24" style="align-items:start">
       <div class="card"><h2 class="h4" style="margin-bottom:18px">Status pesanan</h2><ol class="tl">${tl}</ol>
         ${extra.length ? `<hr class="hr"><b class="sm">Catatan aktivitas</b>${extra.map(x => `<p class="sm mt8">${esc(x.label)} <span class="muted">· ${tgl(x.at)} ${jam(x.at)}</span></p>`).join('')}` : ''}</div>
-      <div class="col g16">${qcCard}${pickCard}
+      <div class="col g16">${payCard}${qcCard}${pickCard}
         ${o.step === 7 && story ? `<div class="card bg-tq col g8"><b>${ic('Book', 18)} Ceritamu sudah ada di Cerita Saya</b><a class="btn btn-pri btn-sm" style="align-self:flex-start" href="#cerita-${story.id}" data-go="cerita-${story.id}">Buka cerita</a></div>` : ''}
-        <div class="card dash col g8"><b>Simulasi prototipe</b><p class="sm muted">Tombol ini hanya ada di prototipe untuk memajukan status pesanan.</p><button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simNext" data-arg="${o.id}" ${o.step === 7 || (o.step === 5 && o.qc === 'waiting') ? 'disabled' : ''}>${ic('ArrowRight', 16)} ${o.step === 7 ? 'Pesanan selesai' : o.step === 5 && o.qc === 'waiting' ? 'Menunggu persetujuanmu' : 'Simulasikan update berikutnya'}</button></div></div>
+        <div class="card dash col g8"><b>Simulasi prototipe</b><p class="sm muted">Tombol ini hanya ada di prototipe untuk memajukan status pesanan.</p>${o.pay === 'menunggu' ? `<button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simPay" data-arg="${o.id}">${ic('Check', 16)} Simulasikan admin mengonfirmasi pembayaran</button>` : `<button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simNext" data-arg="${o.id}" ${o.step === 7 || (o.step === 5 && o.qc === 'waiting') ? 'disabled' : ''}>${ic('ArrowRight', 16)} ${o.step === 7 ? 'Pesanan selesai' : o.step === 5 && o.qc === 'waiting' ? 'Menunggu persetujuanmu' : 'Simulasikan update berikutnya'}</button>`}</div></div>
     </div></section>`;
 }
 
 function storyCard(s) {
-  return `<article class="pcard"><a class="pimg" href="#cerita-${s.id}" data-go="cerita-${s.id}" aria-label="Buka cerita ${esc(s.title)}">${prodImg(s.product)}</a><div class="pbody"><div class="row sb"><span class="pill soft-pink">${esc(s.moment || 'Cerita')} ${esc(s.year || '')}</span><span class="tiny muted">${ic(s.tag === 'nfc' ? 'Nfc' : 'QR', 14)} ${TAGS[s.tag][0]}</span></div><h3 class="h4">${esc(s.title)}</h3><p class="sm muted">“${esc(s.text.length > 110 ? s.text.slice(0, 108) + '…' : s.text)}”</p><a class="btn btn-sec btn-sm" href="#cerita-${s.id}" data-go="cerita-${s.id}">Baca cerita</a></div></article>`;
+  return `<article class="pcard"><a class="pimg" href="#cerita-${s.id}" data-go="cerita-${s.id}" aria-label="Buka cerita ${esc(s.title)}">${prodImg(s.product)}</a><div class="pbody"><div class="row sb"><span class="pill soft-pink">${esc(s.moment || 'Cerita')} ${esc(s.year || '')}</span><span class="tiny muted">${ic('QR', 14)} Memory Tag</span></div><h3 class="h4">${esc(s.title)}</h3><p class="sm muted">“${esc(s.text.length > 110 ? s.text.slice(0, 108) + '…' : s.text)}”</p><a class="btn btn-sec btn-sm" href="#cerita-${s.id}" data-go="cerita-${s.id}">Baca cerita</a></div></article>`;
 }
 function vStories() {
   const st = myStories();
@@ -1326,9 +1590,9 @@ function vStory(m) {
       <div><div class="bas" id="bas"><div class="bas-before">${beforeImg(s.before, 'Sebelum: ' + s.from)}</div><div class="bas-after">${prodImg(s.product, 'Sesudah: ' + p.name)}</div><span class="handle">${ic('ChevronLeft', 14)}${ic('ChevronRight', 14)}</span><span class="lb" style="left:12px">Sebelum</span><span class="lb" style="right:12px">Sesudah</span><input type="range" min="0" max="100" value="50" data-in="bas" aria-label="Geser untuk membandingkan sebelum dan sesudah"></div><p class="note mt8">Geser untuk membandingkan.</p></div>
       <div class="col g16"><span class="pill soft-pink" style="align-self:flex-start">${esc(s.moment)} · ${esc(s.year)}</span>
         ${editing ? `<label class="field"><span>Judul</span><input class="inp" id="esTitle" value="${esc(s.title)}" maxlength="40"></label><label class="field"><span>Cerita</span><textarea class="ta" id="esText" maxlength="500">${esc(s.text)}</textarea></label><div class="row g8"><button class="btn btn-pri btn-sm" data-act="saveStory" data-arg="${s.id}">Simpan</button><button class="btn btn-ghost btn-sm" data-act="editStory" data-arg="">Batal</button></div>`
-        : `<h1 class="h1">${esc(s.title)}</h1><p class="lead">“${esc(s.text)}”</p><div class="row wr g8"><button class="btn btn-sec btn-sm" data-act="editStory" data-arg="${s.id}">${ic('Edit', 16)} Edit cerita</button><a class="btn btn-pri btn-sm" href="#tag-${s.id}" data-go="tag-${s.id}">${ic(s.tag === 'nfc' ? 'Nfc' : 'QR', 16)} Buka halaman tag</a></div>`}
+        : `<h1 class="h1">${esc(s.title)}</h1><p class="lead">“${esc(s.text)}”</p><div class="row wr g8"><button class="btn btn-sec btn-sm" data-act="editStory" data-arg="${s.id}">${ic('Edit', 16)} Edit cerita</button><a class="btn btn-pri btn-sm" href="#tag-${s.id}" data-go="tag-${s.id}">${ic('QR', 16)} Buka halaman tag</a></div>`}
       </div></div>
-    <div class="grid g-4 mt32">${[['Shirt','blue','Kain asalnya',s.from + ', ' + s.year],['Heart','pink','Momennya',s.moment],['Needle','orange','Diubah jadi',p.name + (o ? ' oleh ' + o.crafter : '')],['QR','purple','Sekarang','Memory Tag ' + TAGS[s.tag][0] + ' · ' + (s.privacy === 'publik' ? 'publik' : 'pribadi')]].map((c, i) => `<div class="vcard bg-${c[1]}"><span class="tiny muted b">Bab ${i + 1}</span><b class="h4">${c[2]}</b><p class="sm">${esc(c[3])}</p></div>`).join('')}</div></section>`;
+    <div class="grid g-4 mt32">${[['Shirt','blue','Kain asalnya',s.from + ', ' + s.year],['Heart','pink','Momennya',s.moment],['Needle','orange','Diubah jadi',p.name + (o ? ' oleh ' + o.crafter : '')],['QR','purple','Sekarang','Memory Tag · ' + (s.privacy === 'publik' ? 'publik' : 'pribadi')]].map((c, i) => `<div class="vcard bg-${c[1]}"><span class="tiny muted b">Bab ${i + 1}</span><b class="h4">${c[2]}</b><p class="sm">${esc(c[3])}</p></div>`).join('')}</div></section>`;
 }
 function vTag(m) {
   const s = S.stories.find(x => String(x.id) === m[1]) || S.tagCache[m[1]];
@@ -1340,12 +1604,12 @@ function vTag(m) {
     if (S.tagCache[m[1]] === false) return `<section class="wrap band"><div class="card dash empty"><div class="tile bg-purple">${ic('QR', 28)}</div><p class="b">Membuka cerita…</p></div></section>`;
     return `<section class="wrap band">${empty('QR', 'purple', 'Cerita tidak ditemukan', 'Tag ini belum terhubung ke cerita mana pun.', '<a class="btn btn-sec" href="#beranda" data-go="beranda">Ke beranda</a>')}</section>`;
   }
-  const p = PROD[s.product], via = s.tag === 'nfc' ? 'Dibuka lewat NFC Tag' : 'Dipindai dari Memory Tag';
+  const p = PROD[s.product], via = 'Dipindai dari Memory Tag';
   const own = S.user && S.user.email === s.owner;
   return `<section class="wrap band"><div class="grid g-2" style="align-items:center;gap:40px">
-    <div><p class="kick c-purple">Contoh halaman Memory Tag</p><h1 class="h1">Inilah yang muncul saat tag dipindai</h1><p class="lead muted mt12">Siapa pun yang memindai QR atau menempelkan HP ke NFC Tag akan membuka halaman ini. Untuk cerita pribadi, halaman hanya terbuka lewat tag fisik.</p>
+    <div><p class="kick c-purple">Contoh halaman Memory Tag</p><h1 class="h1">Inilah yang muncul saat tag dipindai</h1><p class="lead muted mt12">Siapa pun yang memindai kode QR di Memory Tag akan membuka halaman ini. Untuk cerita pribadi, halaman hanya terbuka lewat tag fisik.</p>
       <div class="row wr g12 mt24">${own ? `<a class="btn btn-sec" href="#cerita-${s.id}" data-go="cerita-${s.id}">${ic('ArrowLeft', 18)} Kembali ke cerita</a>` : `<a class="btn btn-cta" href="#masuk" data-act="start">Buat Memory Tag-mu</a>`}<button class="btn btn-ghost" data-act="copyTag" data-arg="${s.id}">Salin tautan</button></div></div>
-    <div class="phone"><div class="phone-in"><div style="background:var(--dark);color:#fff;padding:12px 16px;font-size:12px" class="row sb"><span>${ic(s.tag === 'nfc' ? 'Nfc' : 'QR', 14)} ${via}</span><span>ReCraft</span></div>
+    <div class="phone"><div class="phone-in"><div style="background:var(--dark);color:#fff;padding:12px 16px;font-size:12px" class="row sb"><span>${ic('QR', 14)} ${via}</span><span>ReCraft</span></div>
       <div style="padding:16px" class="col g12"><div class="row g8"><div class="pimg" style="width:50%;border:2px solid var(--dark);border-radius:14px">${beforeImg(s.before)}</div><div class="pimg" style="width:50%;border:2px solid var(--dark);border-radius:14px">${prodImg(s.product)}</div></div>
         <span class="pill soft-pink" style="align-self:flex-start">${esc(s.moment)} · ${esc(s.year)}</span><h2 class="h3">${esc(s.title)}</h2><p class="sm">“${esc(s.text)}”</p>
         <div class="card soft pad-s sm"><b>${esc(s.from)}</b> → <b>${p.name}</b><br><span class="muted">Dijahit tangan oleh crafter ReCraft</span></div>
@@ -1386,6 +1650,7 @@ const dbTag = o => o.remote ? ' <span class="pill soft-tq">database</span>' : ''
 const KCOLS = [['Kain belum tiba', [0, 1], 'yellow'], ['Kain diterima', [2, 3], 'purple'], ['Produksi', [4], 'orange'], ['Quality check', [5], 'pink'], ['Dikirim dan selesai', [6, 7], 'tq']];
 function crafterOrders() { return S.orders.filter(o => !o.cancelled).sort((a, b) => b.date - a.date); }
 function crNextLabel(o) {
+  if (o.pay === 'menunggu') return 'Menunggu pembayaran dikonfirmasi admin';
   if (o.step === 7) return 'Selesai';
   if (o.step === 5 && o.qc === 'waiting') return 'Menunggu persetujuan pelanggan';
   if (o.step === 5 && o.qc === 'revision') return 'Kirim foto hasil perbaikan';
@@ -1409,13 +1674,15 @@ function vCrafter() {
   }
   const detail = sel ? `<div class="card col g16 mt24" id="crdetail"><div class="row sb wr"><div class="row g12"><div class="tile" style="width:72px;height:72px;overflow:hidden">${prodImg(sel.product)}</div><div><h2 class="h3">${esc(sel.name)}</h2><div class="sm muted">${sel.id} · ${esc(sel.customer)} · ${stepName(sel, sel.step)}</div></div></div>${badge(sel)}</div>
     <div class="grid g-3">
-      <div class="card soft col g8"><b>Spesifikasi</b><p class="sm">${esc(optSummary(sel.product, sel.opts))}<br>Aksen ${CNAME[sel.accent].toLowerCase()}${sel.text ? '<br>Teks: ' + esc(sel.text) : ''}<br>Memory Tag ${TAGS[sel.tag][0]}</p><p class="sm muted">Bahan: ${esc(sel.garment)}, ${esc(sel.material)}</p></div>
+      <div class="card soft col g8"><b>Spesifikasi</b><p class="sm">${esc(optSummary(sel.product, sel.opts))}<br><b>Ukuran:</b> ${esc(sizeText(designOf(sel)))}<br><b>Motif:</b> ${esc(motifText(designOf(sel)))}${TEXT_OK[sel.product] ? '<br><b>Bordir:</b> ' + esc(embText(designOf(sel))) : ''}<br>Memory Tag${sel.tagLabel ? ': ' + esc(sel.tagLabel) : ''}</p><p class="sm muted">Bahan: ${esc(sel.garment)}, ${esc(sel.material)}</p></div>
       <div class="card soft col g8"><b>Cerita di balik kain</b><p class="sm">${sel.story ? '“' + esc(sel.story.text) + '”' : 'Pelanggan tidak menulis cerita untuk pesanan ini.'}</p></div>
       <div class="card soft col g8"><b>Penyerahan kain dan surat</b><p class="sm">${PICK[sel.pickup.method][0]}${sel.pickup.method === 'jemput' ? '<br>' + tglh(sel.pickup.date) + ', ' + sel.pickup.slot + (sel.pickup.kurir ? '<br>Kurir: ' + esc(sel.pickup.kurir) : '') : ''}</p><span class="pill ${sel.agreement ? 'soft-tq' : 'soft-grey'}" style="align-self:flex-start">${sel.agreement ? 'Surat persetujuan ditandatangani' : 'Pesanan lama, tanpa surat digital'}</span></div>
     </div>
+    <div class="grid g-2" style="align-items:start"><div class="layout card soft" style="padding:8px">${layoutSVG(sel, 'cr')}</div>${TEXT_OK[sel.product] && sel.text ? `<div class="emb">${embSVG(sel, 'ce')}</div>` : '<div></div>'}</div>
+    ${sel.pay === 'menunggu' ? `<div class="okbox" style="background:var(--s-orange);color:var(--i-orange);border-color:var(--orange)">${ic('Clock', 18)}Pesanan belum dibayar. Jangan mulai produksi sebelum admin mengonfirmasi pembayaran.</div>` : ''}
     ${sel.step === 5 && sel.qc === 'revision' ? `<div class="okbox" style="background:var(--s-orange);color:var(--i-orange);border-color:var(--orange)">${ic('Edit', 18)}Pelanggan minta perbaikan: “${esc(sel.revNote || 'tanpa catatan')}”</div>` : ''}
     <div class="row wr g12"><label class="btn btn-sec btn-sm" style="position:relative">${ic('Upload', 16)} Unggah foto progres<input type="file" accept="image/*" data-ch="crPhoto" style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Unggah foto progres"></label>
-      <button class="btn btn-pri btn-sm" data-act="crNext" data-arg="${sel.id}" ${sel.step === 7 || (sel.step === 5 && sel.qc === 'waiting') ? 'disabled' : ''}>${crNextLabel(sel)}</button></div>
+      <button class="btn btn-pri btn-sm" data-act="crNext" data-arg="${sel.id}" ${sel.pay === 'menunggu' || sel.step === 7 || (sel.step === 5 && sel.qc === 'waiting') ? 'disabled' : ''}>${crNextLabel(sel)}</button></div>
     <p class="note">Perubahan tahap di sini ikut terlihat di halaman pelacakan pelanggan dan di konsol admin.</p></div>` : '';
   return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu crafter"><span class="sbl tiny muted b" style="padding:6px 12px">Bu Ratna · Crafter</span>${nav.map(n => `<button data-act="crTab" data-arg="${n[0]}" ${S.crTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner('crafter')}${main}${detail}</div></div></section>`;
 }
@@ -1425,13 +1692,15 @@ function vAdmin() {
   const nav = [['ringkasan', 'Chart', 'Ringkasan'], ['pesanan', 'Box', 'Pesanan'], ['jemput', 'Truck', 'Jadwal penjemputan'], ['pelanggan', 'Users', 'Pelanggan'], ['produk', 'Bag', 'Produk'], ['crafter', 'Needle', 'Crafter']];
   const os = S.orders.slice().sort((a, b) => b.date - a.date);
   let main = '';
-  const orderRows = list => `<div class="tblwrap"><table class="tbl stack"><thead><tr><th>Kode</th><th>Pelanggan</th><th>Produk</th><th>Bahan</th><th>Status</th><th>Tanggal</th><th class="num">Total</th></tr></thead><tbody>${list.map(o => `<tr><td class="b nw">${o.id}</td><td>${esc(o.customer)}${dbTag(o)}</td><td>${esc(o.name)}</td><td>${esc(o.material)}</td><td>${badge(o)}</td><td class="nw">${tgl(o.date)}</td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`;
+  const orderRows = list => `<div class="tblwrap"><table class="tbl stack"><thead><tr><th>Kode</th><th>Pelanggan</th><th>Produk</th><th>Status</th><th>Pembayaran</th><th>Tanggal</th><th class="num">Total</th></tr></thead><tbody>${list.map(o => `<tr><td class="b nw">${o.id}</td><td>${esc(o.customer)}${dbTag(o)}</td><td>${esc(o.name)}</td><td>${badge(o)}</td><td>${o.cancelled ? '-' : o.pay === 'menunggu' ? `<button class="btn btn-sec btn-sm" data-act="aPay" data-arg="${o.id}">${ic('Check', 14)} Tandai lunas</button>` : '<span class="pill soft-tq">Lunas</span>'}</td><td class="nw">${tgl(o.date)}</td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`;
   if (S.aTab === 'ringkasan') {
     const weeks = [18, 22, 19, 27, 31, 29, 36, 41], mx = Math.max(...weeks);
     const counts = PRODUCTS.map(p => [p, { tote:46, pouch:38, scrunchie:52, boneka:27, custom:9 }[p.key] + os.filter(o => o.product === p.key && !o.cancelled && (o.remote || o.isNew)).length]);
     const cm = Math.max(...counts.map(c => c[1]));
     const today = os.filter(o => o.pickup.method === 'jemput' && o.step === 0 && !o.cancelled);
+    const unpaid = os.filter(o => o.pay === 'menunggu' && !o.cancelled);
     main = `<h1 class="h2">Ringkasan</h1><p class="muted mt8">Gambaran bisnis ReCraft bulan ini. Angka contoh untuk prototipe.</p>
+      ${unpaid.length ? `<div class="okbox mt16" style="background:var(--s-orange);color:var(--i-orange);border-color:var(--orange)">${ic('Chat', 18)}<span>${unpaid.length} pesanan menunggu konfirmasi pembayaran dari WhatsApp. <button class="linkbtn" data-act="aTab" data-arg="pesanan">Buka daftar pesanan</button></span></div>` : ''}
       <div class="grid g-4 mt24">${[['Pesanan bulan ini', '128', '+14% dari bulan lalu'], ['Pendapatan', 'Rp7,9 jt', '+9% dari bulan lalu'], ['Kain terselamatkan', '214 kg', '+31 kg dari bulan lalu'], ['Rating pelanggan', '4,8 / 5', 'dari 96 ulasan']].map(k => `<div class="kpi"><span class="sm muted">${k[0]}</span><span class="stat">${k[1]}</span><span class="tiny c-tq b">${k[2]}</span></div>`).join('')}</div>
       <div class="grid g-2 mt24">
         <div class="card"><h2 class="h4">Pesanan per minggu</h2><p class="sm muted">8 minggu terakhir</p><div class="cols mt16">${weeks.map((w, i) => `<div><span class="tiny b">${w}</span><i style="height:${w / mx * 75}%;background:var(--${i === weeks.length - 1 ? 'orange' : 'yellow'})"></i><span>M${i + 1}</span></div>`).join('')}</div></div>
@@ -1467,8 +1736,15 @@ function vAdmin() {
 
 /* ---------- order engine ---------- */
 function notify(o, text, icon, color, goTo) { pushNotif({ owner:o.email, uid:o.uid || '', text, meta:o.name, at:new Date(), read:false, icon, color, go:goTo || 'lacak-' + o.id, remote:!!o.remote }); }
+function confirmPay(o) {
+  if (!o || o.pay !== 'menunggu') return false;
+  o.pay = 'lunas'; o.paidAt = new Date();
+  o.history.push({ s:-1, extra:true, label:'Pembayaran dikonfirmasi admin', at:new Date() });
+  notify(o, 'Pembayaran pesanan ' + o.id + ' sudah dikonfirmasi. Pesananmu mulai diproses.', 'Check', 'tq');
+  saveOrder(o); return true;
+}
 function advance(o) {
-  if (o.cancelled || o.step >= 7) return false;
+  if (o.cancelled || o.step >= 7 || o.pay === 'menunggu') return false;
   if (o.step === 5) {
     if (o.qc === 'revision') { o.qc = 'waiting'; o.revUsed = true; o.history.push({ s:-1, extra:true, label:'Foto hasil perbaikan dikirim', at:new Date() }); notify(o, 'Foto hasil perbaikan siap kamu setujui.', 'Check', 'pink'); saveOrder(o); return true; }
     if (o.qc !== 'approved') return false;
@@ -1489,7 +1765,7 @@ function advance(o) {
   saveOrder(o);
   return true;
 }
-async function placeOrder() {
+async function placeOrder(win) {
   const d = S.draft, pr = priceOf(d), p = PROD[d.product], remote = isReal();
   let id;
   if (remote) {
@@ -1497,13 +1773,13 @@ async function placeOrder() {
       const ref = FB.db.collection('meta').doc('counter');
       const n = await FB.db.runTransaction(async t => { const snap = await t.get(ref); const cur = snap.exists && snap.data().seq ? snap.data().seq : 102; t.set(ref, { seq:cur + 1 }); return cur; });
       id = 'RC-2026-0' + n;
-    } catch (e) { dbErr(e); S.busy = false; S.err = 'Pesanan gagal disimpan ke database. Periksa koneksi, lalu coba lagi.'; rerender(); return; }
+    } catch (e) { dbErr(e); S.busy = false; S.err = 'Pesanan gagal disimpan ke database. Periksa koneksi, lalu coba lagi.'; if (win) try { win.close(); } catch (_) {} rerender(); return; }
   } else id = 'RC-2026-L' + (S.seq++);
-  const o = { id, uid:remote ? S.user.uid : '', isNew:true, remote, name:p.name + (d.story.title ? ' · ' + d.story.title : ''), product:d.product, customer:S.user.name, email:S.user.email, date:new Date(), total:pr.total, step:0, cancelled:false, qc:'none', revUsed:false, revNote:'',
+  const o = { id, uid:remote ? S.user.uid : '', isNew:true, remote, pay:'menunggu', payVia:'WhatsApp', motif:JSON.parse(JSON.stringify(d.motif)), fabrics:d.photos.map(ph => ph.src === PH.kemeja ? 'kemeja' : ph.src).filter(Boolean), embFont:d.embFont, embColor:d.embColor, embPos:d.embPos, customW:d.customW, customH:d.customH, tagLabel:(d.tagLabel || d.story.title || '').trim(), name:p.name + (d.story.title ? ' · ' + d.story.title : ''), product:d.product, customer:S.user.name, email:S.user.email, date:new Date(), total:pr.total, step:0, cancelled:false, qc:'none', revUsed:false, revNote:'',
     accent:d.accent, text:d.text.trim(), tag:d.tag, garment:d.garment, material:d.material, opts:Object.assign({}, d.opts), crafter:'Bu Ratna', before:d.photos[0] ? (d.photos[0].src.startsWith('data:') ? d.photos[0].src : 'kemeja') : GARMENTS[d.garment][1],
     pickup:{ method:d.pickup.method, date:d.pickup.method === 'jemput' ? d.pickup.date : addDays(TODAY, 1), slot:d.pickup.slot || SLOTS[0], address:d.pickup.address || S.user.address || '', note:d.pickup.note, courier:d.pickup.courier, kurir:'', resi:'' },
     story:Object.assign({}, d.story), custom:d.custom,
-    agreement:{ name:S.user.name, at:d.agree.at, typed:d.agree.typed, sig:d.agree.sig, leftover:d.agree.leftover }, history:[{ s:0, label:'Pesanan dikonfirmasi', at:new Date() }] };
+    agreement:{ name:S.user.name, at:d.agree.at, typed:d.agree.typed, sig:d.agree.sig, leftover:d.agree.leftover }, history:[{ s:0, label:'Pesanan dibuat', at:new Date() }] };
   if (d.photos[0] && d.photos[0].src === PH.kemeja) o.before = 'kemeja';
   o.due = addDays(o.date, d.product === 'boneka' || d.product === 'custom' ? 14 : 9);
   const story = { id, owner:S.user.email, uid:o.uid, order:id, title:d.story.title, product:d.product, from:d.garment, year:d.story.year || String(TODAY.getFullYear()), moment:d.story.moment || 'Lainnya', before:o.before, tag:d.tag, privacy:d.story.privacy, text:d.story.text, pending:true, remote };
@@ -1511,21 +1787,23 @@ async function placeOrder() {
     try {
       await FB.db.collection('orders').doc(id).set(toDoc(o));
       await FB.db.collection('stories').doc(id).set(toDoc(story));
-    } catch (e) { dbErr(e); S.busy = false; S.err = 'Pesanan gagal disimpan ke database: ' + ((e && e.code) || 'kesalahan tidak diketahui') + '.'; rerender(); return; }
+    } catch (e) { dbErr(e); S.busy = false; S.err = 'Pesanan gagal disimpan ke database: ' + ((e && e.code) || 'kesalahan tidak diketahui') + '.'; if (win) try { win.close(); } catch (_) {} rerender(); return; }
     S.remoteOrders = S.remoteOrders.filter(x => x.id !== id).concat(o);
     if (!S.remoteStories.some(x => x.id === id)) S.remoteStories = S.remoteStories.concat(story);
   } else { S.localOrders.push(o); S.localStories.push(story); }
   rebuild();
-  notify(o, 'Pesanan ' + id + ' sudah kami terima.', 'Check', 'tq');
+  notify(o, 'Pesanan ' + id + ' sudah dibuat. Selesaikan pembayaran lewat WhatsApp admin.', 'Chat', 'tq');
   if (o.pickup.method === 'jemput') notify(o, 'Penjemputan kain dijadwalkan ' + tglh(o.pickup.date) + ', ' + o.pickup.slot + '.', 'Truck', 'blue');
   S.draft = newDraft(); S.busy = false;
   go('berhasil-' + id);
-  toast(remote ? 'Pembayaran berhasil (simulasi). Pesanan tersimpan di database.' : 'Pembayaran berhasil (simulasi).');
+  if (win && !win.closed) { const link = waLink(o); if (link) { try { win.location.href = link; } catch (e) { try { win.close(); } catch (_) {} } } else { try { win.close(); } catch (_) {} } }
+  toast(remote ? 'Pesanan tersimpan di database. Lanjutkan pembayaran di WhatsApp.' : 'Pesanan dibuat. Lanjutkan pembayaran di WhatsApp.');
 }
 function validateStep(i) {
   const d = S.draft;
   if (i === 0 && !d.photos.length) return 'Unggah minimal satu foto baju, atau pakai foto contoh.';
   if (i === 2 && fabricOf(d) < PROD[d.product].need) return 'Kain belum cukup untuk produk ini. Pilih produk lain atau tambah jumlah baju.';
+  if (i === 3 && d.product === 'custom' && (d.customW || d.customH) && !(+d.customW >= 5 && +d.customW <= 100 && +d.customH >= 5 && +d.customH <= 100)) return 'Isi ukuran custom dengan angka 5–100 cm untuk lebar dan tinggi, atau kosongkan keduanya.';
   if (i === 3 && d.product === 'custom' && d.custom.trim().length < 15) return 'Ceritakan idemu minimal 15 karakter supaya crafter bisa memberi penawaran.';
   if (i === 5) { if (d.story.title.trim().length < 3) return 'Isi judul cerita (minimal 3 karakter).'; if (d.story.text.trim().length < 20) return 'Tulis ceritamu minimal 20 karakter.'; if (d.story.year && !/^(19|20)\d\d$/.test(d.story.year)) return 'Tahun harus 4 angka, misalnya 2024.'; }
   if (i === 7 && d.pickup.method === 'jemput') { if (!d.pickup.date) return 'Pilih tanggal penjemputan.'; if (!d.pickup.slot) return 'Pilih jam penjemputan.'; if (d.pickup.address.trim().length < 10) return 'Isi alamat penjemputan dengan lengkap.'; }
@@ -1538,14 +1816,18 @@ function botReply(t) {
   t = t.toLowerCase();
   if (/lama|berapa hari|produksi|kapan selesai/.test(t)) return 'Kebanyakan produk selesai 3–7 hari setelah kain tiba di studio. Boneka dan produk custom bisa sampai 14 hari.';
   if (/jemput|pickup|kurir|antar|kirim kain/.test(t)) return 'Ada tiga cara: ReCraft Pickup (kurir jemput ke rumah, Rp10.000), antar sendiri ke studio, atau kirim lewat kurir pilihanmu. Jadwal jemput bisa diubah di halaman pelacakan.';
-  if (/nfc|qr|tag/.test(t)) return 'QR Code (Rp10.000) dipindai pakai kamera HP. NFC Tag (Rp20.000) cukup ditempel ke HP yang mendukung NFC. Paket QR + NFC Rp25.000.';
+  if (/bayar|pembayaran|transfer|whatsapp|\bwa\b|qris/.test(t)) return 'Pembayaran lewat WhatsApp admin ReCraft. Setelah pesanan dibuat, WhatsApp terbuka dengan rincian pesanan. Admin membalas dengan cara bayar (transfer bank atau QRIS) lalu mengonfirmasi pembayaranmu.';
+  if (/nfc|qr|tag|memory/.test(t)) return 'Memory Tag adalah label kain berkode QR (Rp10.000) yang dijahit di setiap produk. Pindai dengan kamera HP untuk membuka foto sebelum, sesudah, dan ceritamu.';
+  if (/ukuran|cm|besar|kecil/.test(t)) return 'Tote bag 30 × 35 cm sampai 45 × 45 cm, pouch 15 × 10 cm sampai 25 × 16 cm, boneka 14 × 20 cm sampai 23 × 35 cm. Produk custom boleh isi ukuran sendiri.';
+  if (/motif|corak|batik|kotak|bunga/.test(t)) return 'Motif selalu dari kain bajumu sendiri. Saat kustomisasi kamu bisa menggeser, memperbesar, dan memutar motif di setiap bagian produk. Kalau mengunggah beberapa foto baju, tiap bagian bisa memakai kain yang berbeda.';
+  if (/bordir|sulam/.test(t)) return 'Teks bordir maksimal 14 karakter (+Rp10.000) dengan huruf kaligrafi. Kamu bisa memilih jenis huruf, warna benang, dan posisinya, lengkap dengan pratinjau gambar.';
   if (/surat|persetujuan|tanda tangan/.test(t)) return 'Sebelum bayar, kamu menandatangani Surat Pernyataan Persetujuan Hasil Produk. Isinya izin memotong kain, catatan bahwa hasil buatan tangan bisa sedikit berbeda, dan persetujuan foto hasil akhir dalam 2×24 jam (boleh minta 1x perbaikan).';
   if (/harga|biaya|berapa|mahal|murah/.test(t)) return 'Harga mulai dari Rp15.000 (scrunchie), Rp35.000 (pouch), Rp49.000 (tote bag), dan Rp65.000 (boneka). Produk custom harganya sesuai ide dan dikonfirmasi crafter.';
   if (/bahan|kain|baju apa|jenis/.test(t)) return 'Hampir semua kain bisa: kaos, kemeja, jeans, gaun, jaket, batik, kebaya, sampai seragam sekolah. Di langkah Cek Kain kamu bisa lihat produk apa yang cocok.';
   if (/lacak|status|pesanan|order/.test(t)) return 'Buka Pesanan Saya lalu pilih Lacak. Semua status muncul lengkap dengan tanggal dan jamnya.';
   if (/batal|refund|uang kembali/.test(t)) return 'Kalau kain ternyata tidak bisa dipakai, kami hubungi sebelum memotong. Kamu bisa pilih produk lain, tambah kain, atau uang kembali penuh.';
   if (/halo|hai|hi|pagi|siang|sore|malam/.test(t)) return 'Halo juga! Ada yang bisa aku bantu soal ReCraft?';
-  return 'Pertanyaan bagus! Di prototipe ini aku bisa menjawab soal lama produksi, harga, penjemputan kain, QR/NFC, surat persetujuan, bahan, dan pelacakan pesanan.';
+  return 'Pertanyaan bagus! Di prototipe ini aku bisa menjawab soal lama produksi, harga, penjemputan kain, Memory Tag, motif, ukuran, bordir, pembayaran lewat WhatsApp, surat persetujuan, bahan, dan pelacakan pesanan.';
 }
 function renderChat() {
   const c = document.getElementById('chat');
@@ -1553,7 +1835,7 @@ function renderChat() {
   if (!S.chat.open) { c.innerHTML = ''; return; }
   c.innerHTML = `<header><div class="row g8"><div class="tile" style="width:40px;height:40px;background:#fff">${ic('Needle', 20)}</div><div><b>Bantuan ReCraft</b><div class="tiny muted">Biasanya membalas langsung</div></div></div><button class="iconbtn" style="width:40px;height:40px" data-act="chat" aria-label="Tutup chat">${ic('Close', 18)}</button></header>
     <div class="msgs" id="msgs">${S.chat.msgs.map(m => `<div class="msg ${m[0]}">${esc(m[1])}</div>`).join('')}</div>
-    <div class="quick">${['Berapa lama produksi?', 'Bisa dijemput?', 'Bedanya QR dan NFC?', 'Isi surat persetujuan?'].map(q => `<button class="chip" data-act="chatQ" data-arg="${q}">${q}</button>`).join('')}</div>
+    <div class="quick">${['Cara bayarnya?', 'Berapa lama produksi?', 'Bisa pilih motif?', 'Apa itu Memory Tag?'].map(q => `<button class="chip" data-act="chatQ" data-arg="${q}">${q}</button>`).join('')}</div>
     <form data-sub="chat"><label class="sr" for="chatin">Tulis pesan</label><input class="inp" id="chatin" name="m" placeholder="Tulis pertanyaanmu…" autocomplete="off"><button class="iconbtn" type="submit" aria-label="Kirim">${ic('Send', 18)}</button></form>`;
   const m = document.getElementById('msgs'); m.scrollTop = m.scrollHeight;
 }
@@ -1576,12 +1858,24 @@ const ACT = {
   loginAs(role) { if (S.user && S.user.demo) S.user = null; S.after = role; go('masuk'); },
   excat(c) { S.exCat = c; document.querySelectorAll('[data-act=excat]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.arg === c))); applyExplore(); },
   samplePhoto() { const d = S.draft; if (d.photos.length >= 4) { toast('Maksimal 4 foto.'); return; } d.photos.push({ name:'kemeja-contoh.jpg', src:PH.kemeja }); d.garment = 'Kemeja'; d.material = 'Katun'; S.err = ''; rerender(); },
-  rmPhoto(i) { S.draft.photos.splice(+i, 1); rerender(); },
+  rmPhoto(i) { const d = S.draft; d.photos.splice(+i, 1); Object.keys(d.motif.src || {}).forEach(k => { if (d.motif.src[k] >= d.photos.length) d.motif.src[k] = 0; }); rerender(); },
   next() { const i = flowIdx(); const e = validateStep(i); if (e) { S.err = e; rerender(); return; } S.err = ''; S.draft.reached = Math.max(S.draft.reached, i + 1); go(FLOW[i + 1][0]); },
-  pickProduct(k) { const d = S.draft; if (d.product !== k) { d.product = k; d.opts = defOpts(k); if (!TEXT_OK[k]) d.text = ''; } S.err = ''; rerender(); },
+  pickProduct(k) { const d = S.draft; if (d.product !== k) { d.product = k; d.opts = defOpts(k); d.motif.parts = (DEF_PARTS[k] || []).slice(); d.embPos = (EMB_POS[k] || [['depan']])[0][0]; d.customW = ''; d.customH = ''; if (!TEXT_OK[k]) d.text = ''; } S.err = ''; rerender(); },
+  motifU(m) { S.draft.motif.utama = m; rerender(); },
+  motifA(m) { S.draft.motif.aksen = m; rerender(); },
+  part(p) { const ps = S.draft.motif.parts, i = ps.indexOf(p); if (i >= 0) ps.splice(i, 1); else ps.push(p); rerender(); },
+  embFont(f) { S.draft.embFont = f; rerender(); },
+  embColor(c) { S.draft.embColor = c; rerender(); },
+  embPos(p) { S.draft.embPos = p; rerender(); },
+  stageTab(t) { S.draft.stageTab = t; rerender(); },
+  msel(p) { S.draft.motif.sel = p; rerender(); },
+  msrc(i) { const d = S.draft; d.motif.src = d.motif.src || {}; d.motif.src[d.motif.sel] = +i; rerender(); },
+  mnudge(dir) { const d = S.draft, p = posGet(d, d.motif.sel), k = 12; if (dir === 'kiri') p.x -= k; if (dir === 'kanan') p.x += k; if (dir === 'atas') p.y -= k; if (dir === 'bawah') p.y += k; applyPos(d.motif.sel); refreshEmb(); },
+  mreset() { const d = S.draft; delete d.motif.pos[d.motif.sel]; rerender(); },
+  mresetAll() { S.draft.motif.pos = {}; rerender(); toast('Posisi semua motif dikembalikan.'); },
   opt(a) { const [k, j] = a.split('|'); S.draft.opts[k] = +j; rerender(); },
   accent(c) { S.draft.accent = c; rerender(); },
-  resetDesign() { const d = S.draft; d.opts = defOpts(d.product); d.accent = 'orange'; d.text = ''; d.custom = ''; rerender(); toast('Desain dikembalikan ke awal.'); },
+  resetDesign() { const d = S.draft, k = d.product; d.opts = defOpts(k); d.accent = 'orange'; d.text = ''; d.custom = ''; d.customW = ''; d.customH = ''; d.motif = { utama:'asli', aksen:'asli', parts:[], note:'', pos:{}, sel:'badan', src:{} }; d.embFont = 'greatvibes'; d.embColor = 'putih'; d.embPos = (EMB_POS[k] || [['depan']])[0][0]; rerender(); toast('Desain dikembalikan ke awal.'); },
   saveDesign() { toast('Desain disimpan.'); },
   moment(m) { S.draft.story.moment = S.draft.story.moment === m ? '' : m; rerender(); },
   privacy(p) { S.draft.story.privacy = p; rerender(); },
@@ -1604,11 +1898,17 @@ const ACT = {
     toast('Surat persetujuan sudah ditandatangani.'); rerender();
   },
   unsign() { const a = S.draft.agree; a.signed = false; a.strokes = []; a.sig = null; a.ok = false; S.draft.reached = Math.min(S.draft.reached, 8); rerender(); },
-  pay(p) { S.draft.pay = p; S.draft.payWith = PAY[p][1][0]; rerender(); },
-  payWith(b) { S.draft.payWith = b; rerender(); },
-  placeOrder() { if (S.busy) return; if (!S.draft.agree.signed) { S.err = 'Tanda tangani surat persetujuan dulu.'; go('buat-surat'); return; } S.busy = true; S.err = ''; rerender(); placeOrder(); },
+  placeOrder() {
+    if (S.busy) return;
+    if (!S.draft.agree.signed) { S.err = 'Tanda tangani surat persetujuan dulu.'; go('buat-surat'); return; }
+    let win = null;
+    if (ADMIN_WA) { try { win = window.open('', '_blank'); if (win) win.document.write('<p style="font:16px system-ui;padding:24px">Menyiapkan pesan WhatsApp untuk admin ReCraft…</p>'); } catch (e) { win = null; } }
+    S.busy = true; S.err = ''; rerender(); placeOrder(win);
+  },
   ordTab(t) { S.ordTab = t; rerender(); },
   simNext(id) { const o = findOrder(id); if (o && advance(o)) { toast(stepName(o, o.step)); rerender(); } },
+  simPay(id) { const o = findOrder(id); if (confirmPay(o)) { toast('Pembayaran dikonfirmasi admin (simulasi).'); rerender(); } },
+  aPay(id) { const o = findOrder(id); if (confirmPay(o)) { toast(o.id + ' ditandai lunas.'); rerender(); } },
   qcApprove(id) { const o = findOrder(id); o.qc = 'approved'; o.history.push({ s:-1, extra:true, label:'Kamu menyetujui foto hasil akhir', at:new Date() }); saveOrder(o); toast('Terima kasih! Pesanan segera dikemas dan dikirim.'); rerender(); },
   qcRevise(id) { const o = findOrder(id); const n = document.getElementById('revnote'); o.revNote = n ? n.value.trim() : ''; o.qc = 'revision'; o.history.push({ s:-1, extra:true, label:'Kamu meminta satu kali perbaikan', at:new Date() }); saveOrder(o); toast('Permintaan perbaikan dikirim ke crafter.'); rerender(); },
   resched(id) { const o = findOrder(id); S.resched = id; S.rsDate = o.pickup.date; S.rsSlot = o.pickup.slot; rerender(); },
@@ -1638,9 +1938,47 @@ const ACT = {
   crNext(id) { const o = findOrder(id); if (o && advance(o)) { toast(o.id + ': ' + stepName(o, o.step)); rerender(); } },
   aTab(t) { S.aTab = t; rerender(); }
 };
+function posGet(d, part) { d.motif.pos = d.motif.pos || {}; return d.motif.pos[part] || (d.motif.pos[part] = { x:0, y:0, s:1, r:0 }); }
+function applyPos(part) { const el = document.getElementById('lv-' + part); if (!el) return; const b = el.getAttribute('data-base'); el.setAttribute('patternTransform', tfStr(posGet(S.draft, part)) + (b ? ' ' + b : '')); }
+function refreshEmb() { const eb = document.getElementById('embBox'); if (eb && !eb.hidden) eb.innerHTML = embSVG(S.draft, 'em'); }
+function mountLayout() {
+  const box = document.getElementById('layoutBox'); if (!box || !box.classList.contains('drag')) return;
+  const d = S.draft; let drag = null;
+  box.addEventListener('pointerdown', e => {
+    const el = e.target.closest && e.target.closest('[data-part]'); if (!el) return;
+    e.preventDefault();
+    const part = el.getAttribute('data-part'), svg = box.querySelector('svg'), w = svg.getBoundingClientRect().width || 360;
+    drag = { part, k:360 / w, x:e.clientX, y:e.clientY, moved:false, changed:d.motif.sel !== part };
+    d.motif.sel = part;
+    box.querySelectorAll('.selpart').forEach(n => n.classList.remove('selpart'));
+    box.querySelectorAll('[data-part="' + part + '"]').forEach(n => { if (n.getAttribute('fill') && n.getAttribute('fill').startsWith('url(')) n.classList.add('selpart'); });
+    try { box.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  box.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = posGet(d, drag.part); p.x += (e.clientX - drag.x) * drag.k; p.y += (e.clientY - drag.y) * drag.k;
+    drag.x = e.clientX; drag.y = e.clientY; drag.moved = true; applyPos(drag.part);
+  });
+  const end = () => { if (!drag) return; const c = drag.changed || drag.moved; drag = null; if (c) rerender(); };
+  box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+}
+function liveDesign() {
+  const d = S.draft, D = designOf(d), has = !!d.text.trim();
+  const lb = document.getElementById('layoutBox'); if (lb) lb.innerHTML = layoutSVG(d, 'lv', d.motif.sel);
+  const eb = document.getElementById('embBox'); if (eb) { eb.hidden = !has; eb.innerHTML = embSVG(d, 'em'); }
+  const eo = document.getElementById('embOpts'); if (eo) eo.hidden = !has;
+  const p = document.getElementById('stPrice'); if (p) p.textContent = rp(priceOf(d).productTotal);
+  const sz = document.getElementById('stSize'); if (sz) sz.textContent = sizeText(D);
+}
 const IN = {
+  mscale(t) { const d = S.draft, p = posGet(d, d.motif.sel); p.s = (+t.value || 100) / 100; applyPos(d.motif.sel); const v = document.getElementById('mscaleV'); if (v) v.textContent = t.value + '%'; refreshEmb(); },
+  mrot(t) { const d = S.draft, p = posGet(d, d.motif.sel); p.r = +t.value || 0; applyPos(d.motif.sel); const v = document.getElementById('mrotV'); if (v) v.textContent = t.value + '°'; refreshEmb(); },
   exq(t) { S.exQ = t.value; applyExplore(); },
-  text(t) { const d = S.draft; d.text = t.value; const l = document.getElementById('stLabel'); if (l) l.textContent = d.text.trim() || 'ReCraft'; const p = document.getElementById('stPrice'); if (p) p.textContent = rp(priceOf(d).productTotal); },
+  text(t) { S.draft.text = t.value; liveDesign(); },
+  cw(t) { S.draft.customW = t.value.replace(/[^\d.,]/g, '').replace(',', '.'); liveDesign(); },
+  ch(t) { S.draft.customH = t.value.replace(/[^\d.,]/g, '').replace(',', '.'); liveDesign(); },
+  motifNote(t) { S.draft.motif.note = t.value; const m = document.getElementById('stMotif'); if (m) m.textContent = motifText(designOf(S.draft)); },
+  tagLabel(t) { S.draft.tagLabel = t.value; const el = document.getElementById('mtagTitle'); if (el) el.textContent = t.value || S.draft.story.title || 'Ceritamu'; },
   custom(t) { S.draft.custom = t.value; },
   'st-title'(t) { S.draft.story.title = t.value; },
   'st-year'(t) { S.draft.story.year = t.value.replace(/\D/g, ''); if (t.value !== S.draft.story.year) t.value = S.draft.story.year; },
@@ -1778,6 +2116,7 @@ function render(keep) {
   renderChrome(h);
   if (h === 'jelajahi') applyExplore();
   if (h === 'buat-surat') mountSig();
+  if (h === 'buat-desain') mountLayout();
   if (h === 'buat-unggah') mountDrop();
   document.title = 'ReCraft · ' + (TITLES[h] || (h.startsWith('buat-') ? 'Buat ReCraft' : h.startsWith('lacak-') ? 'Lacak Pesanan' : h.startsWith('cerita-') ? 'Cerita' : h.startsWith('tag-') ? 'Memory Tag' : h.startsWith('produk-') ? 'Produk' : 'Setiap Kain Punya Cerita'));
   window.scrollTo(0, keep || same ? y : 0);
