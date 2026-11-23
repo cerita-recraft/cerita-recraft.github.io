@@ -57,15 +57,12 @@ p{margin:0}
 @media(max-width:760px){.g-3,.g-5{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.g-2,.g-3,.g-4,.g-5{grid-template-columns:minmax(0,1fr)}}
 
-/* prototype bar + header */
-.proto{background:var(--dark);color:#fff;font-size:13px}
-.proto .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;flex-wrap:wrap;padding-block:4px}
-.dbpill{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:2px 10px;border-radius:999px;background:#ffffff1a;font-size:12px;font-weight:600}
-.dbpill:before{content:"";width:8px;height:8px;border-radius:50%;background:#aaa}
-.dbpill.on:before{background:#68D3CE}.dbpill.bad:before{background:#F4A6C1}.dbpill.off:before{background:#F5D76E}
+/* header */
 .seg{display:inline-flex;background:#ffffff1a;border-radius:999px;padding:3px;gap:2px}
 .seg button{border:0;background:none;color:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;min-height:30px}
 .seg button[aria-pressed=true]{background:var(--yellow);color:var(--dark)}
+.seg.light{background:var(--line)}.seg.light button{color:var(--dark)}
+.top.staff .wrap{gap:12px;flex-wrap:wrap;padding-block:8px}
 .top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--cream) 92%,transparent);backdrop-filter:blur(8px);border-bottom:2px dashed var(--border)}
 .top .wrap{display:flex;align-items:center;gap:20px;min-height:72px}
 .logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--dark);font-weight:800;font-size:21px;letter-spacing:-.06em;flex:none;cursor:pointer;background:none;border:0;padding:0}
@@ -401,7 +398,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
-<div class="proto"><div class="wrap"><span><b>Prototipe ReCraft</b> · versi 1.2<span class="dbpill" id="dbstat"></span></span><div class="row g8"><span>Lihat sebagai</span><div class="seg" id="seg" role="group" aria-label="Lihat sebagai"><button data-act="role" data-arg="pelanggan" aria-pressed="true">Pelanggan</button><button data-act="role" data-arg="crafter" aria-pressed="false">Crafter</button><button data-act="role" data-arg="admin" aria-pressed="false">Admin</button></div></div></div></div>
 <header class="top" id="hdr"></header>
 <main id="app"></main>
 <footer id="ftr"></footer>
@@ -611,6 +607,7 @@ const S = {
   crTab:'papan', crSel:null, aTab:'ringkasan', aStatus:'Semua', aQ:'',
   prodOn:{ tote:true, pouch:true, scrunchie:true, boneka:true, custom:true },
   chat:{ open:false, msgs:[['bot','Halo! Aku asisten ReCraft. Mau tanya soal produk, penjemputan kain, Memory Tag, atau pesananmu?']] },
+  users:[], uQ:'', uAsk:null, crErr:null, crVal:null, authNote:'',
   draft:null, authReady:false, busy:false, dirty:false, unsub:[], loaded:{ orders:false, stories:false }, tagCache:{}, loginEmail:'',
   orders:[], stories:[], notifs:[], localOrders:[], localStories:[], localNotifs:[], remoteOrders:[], remoteStories:[], remoteNotifs:[]
 };
@@ -667,6 +664,17 @@ S.localNotifs = [
   { owner:R, text:'Memory Tag-mu sudah aktif.', meta:'Pouch Batik Mama', at:new Date(2026, 7, 8), read:true, icon:'QR', color:'purple', go:'cerita-2' },
   { owner:R, text:'ReCraft-mu sudah diterima.', meta:'Pouch Batik Mama', at:new Date(2026, 7, 9), read:true, icon:'Box', color:'tq', go:'pesanan-RC-2026-0064' }
 ];
+const STAFF_ROLES = ['admin', 'crafter'];
+// Hanya ada satu akun admin. Username "admin" diterjemahkan ke email di bawah; kata sandinya hanya tersimpan di Firebase Authentication.
+const ADMIN_USER = 'admin';
+const ADMIN_EMAIL = 'admin@cerita-recraft.github.io';
+const loginId = s => { const v = String(s || '').trim().toLowerCase(); return v === ADMIN_USER ? ADMIN_EMAIL : v; };
+const PAGE_ROLES = { admin:['admin'], crafter:['admin', 'crafter'] };
+const roleOf = () => S.user ? (S.user.role || 'pelanggan') : null;
+const isStaff = () => STAFF_ROLES.includes(roleOf());
+const homeOf = () => roleOf() === 'admin' ? 'admin' : roleOf() === 'crafter' ? 'crafter' : 'dashboard';
+const afterLogin = a => a && (PAGE_ROLES[a] ? PAGE_ROLES[a].includes(roleOf()) : !isStaff()) ? a : homeOf();
+const roleName = r => r === 'admin' ? 'Admin' : r === 'crafter' ? 'Crafter' : 'Pelanggan';
 const myOrders = () => S.user ? S.orders.filter(o => o.email === S.user.email) : [];
 const myStories = () => S.user ? S.stories.filter(s => s.owner === S.user.email && !s.pending) : [];
 const myNotifs = () => S.user ? S.notifs.filter(n => n.owner === S.user.email).sort((a, b) => b.at - a.at) : [];
@@ -751,30 +759,58 @@ function dbErr(e) {
 function saveOrder(o) { if (o && o.remote && FB.ok) FB.db.collection('orders').doc(o.id).set(toDoc(o)).catch(dbErr); }
 function saveStory(s) { if (s && s.remote && FB.ok) FB.db.collection('stories').doc(String(s.id)).set(toDoc(s)).catch(dbErr); }
 function pushNotif(n) { if (n.remote && FB.ok) FB.db.collection('notifs').add(toDoc(n)).catch(dbErr); else { S.localNotifs.push(n); rebuild(); } }
-function startListeners(uid) {
+function startListeners(uid, staff) {
   stopListeners();
-  S.unsub.push(FB.db.collection('orders').onSnapshot(s => { S.remoteOrders = s.docs.map(d => fromOrder(d.data())); S.loaded.orders = true; rebuild(); refresh(); }, e => { S.loaded.orders = true; dbErr(e); refresh(); }));
+  const oq = staff ? FB.db.collection('orders') : FB.db.collection('orders').where('uid', '==', uid);
+  S.unsub.push(oq.onSnapshot(s => { S.remoteOrders = s.docs.map(d => fromOrder(d.data())); S.loaded.orders = true; rebuild(); refresh(); }, e => { S.loaded.orders = true; dbErr(e); refresh(); }));
   S.unsub.push(FB.db.collection('stories').where('uid', '==', uid).onSnapshot(s => { S.remoteStories = s.docs.map(d => fromStory(d.id, d.data())); S.loaded.stories = true; rebuild(); refresh(); }, e => { S.loaded.stories = true; dbErr(e); refresh(); }));
   S.unsub.push(FB.db.collection('notifs').where('uid', '==', uid).onSnapshot(s => { S.remoteNotifs = s.docs.map(d => fromNotif(d.id, d.data())); rebuild(); refresh(); }, dbErr));
+  if (roleOf() === 'admin') S.unsub.push(FB.db.collection('users').onSnapshot(s => { S.users = s.docs.map(d => Object.assign({ id:d.id }, d.data())); S.loaded.users = true; refresh(); }, e => { S.loaded.users = true; dbErr(e); refresh(); }));
 }
 const waitData = k => isReal() && !S.loaded[k] ? `<section class="wrap band"><div class="card dash empty"><div class="tile bg-blue">${ic('Refresh', 28)}</div><p class="b">Memuat data dari database…</p></div></section>` : null;
-function stopListeners() { S.loaded = { orders:false, stories:false }; (S.unsub || []).forEach(f => { try { f(); } catch (_) {} }); S.unsub = []; S.remoteOrders = []; S.remoteStories = []; S.remoteNotifs = []; rebuild(); }
+function stopListeners() { S.loaded = { orders:false, stories:false, users:false }; S.users = []; S.uAsk = null; (S.unsub || []).forEach(f => { try { f(); } catch (_) {} }); S.unsub = []; S.remoteOrders = []; S.remoteStories = []; S.remoteNotifs = []; rebuild(); }
 const isTyping = () => { const a = document.activeElement; return !!(a && app.contains(a) && (a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || (a.tagName === 'INPUT' && !/checkbox|radio|file|range|button|submit/.test(a.type)))); };
 function refresh() { if (isTyping()) { S.dirty = true; return; } S.dirty = false; render(true); }
 document.addEventListener('focusout', () => { if (S.dirty) setTimeout(() => { if (S.dirty && !isTyping()) { S.dirty = false; render(true); } }, 150); });
 function onAuth(u) {
+  if (S.unsubMe) { try { S.unsubMe(); } catch (_) {} S.unsubMe = null; }
   if (u) {
-    const pp = S.pendingProfile || {};
-    S.user = { uid:u.uid, name:u.displayName || pp.name || String(u.email || '').split('@')[0], email:String(u.email || '').toLowerCase(), phone:pp.phone || '', address:'', demo:false };
-    startListeners(u.uid);
-    FB.db.collection('users').doc(u.uid).get().then(d => { if (d.exists && S.user && S.user.uid === u.uid) { const x = d.data(); ['name', 'phone', 'address'].forEach(k => { if (x[k]) S.user[k] = x[k]; }); refresh(); } }).catch(dbErr);
-  } else {
-    if (S.user && !S.user.demo) S.user = null;
-    stopListeners();
+    const email = String(u.email || '').toLowerCase(), boss = email === ADMIN_EMAIL;
+    // Nama/HP dari formulir daftar hanya dipakai untuk akun yang baru saja didaftarkan, lalu dibuang.
+    const pp = S.pendingProfile && S.pendingProfile.email === email ? S.pendingProfile : {}; S.pendingProfile = null;
+    const me = { uid:u.uid, name:u.displayName || pp.name || (boss ? 'Admin ReCraft' : email.split('@')[0]), email, phone:pp.phone || '', address:'', demo:false, role:null };
+    S.user = me;
+    // Peran dan status akun dipantau langsung: admin = satu akun khusus (email di ADMIN_EMAIL), crafter = diatur admin di users/{uid}.
+    S.unsubMe = FB.db.collection('users').doc(u.uid).onSnapshot(d => {
+      if (S.user !== me) return;
+      const x = d.exists ? d.data() : {};
+      if (!boss && x.status === 'nonaktif') { blockedOut(); return; }
+      ['name', 'phone', 'address'].forEach(k => { if (x[k]) me[k] = x[k]; });
+      const role = boss ? 'admin' : x.role === 'crafter' ? 'crafter' : 'pelanggan';
+      if (me.role === null) { me.role = role; authDone(me); }
+      else if (me.role !== role) { me.role = role; startListeners(me.uid, isStaff()); toast(role === 'crafter' ? 'Akunmu sekarang terdaftar sebagai crafter.' : 'Akunmu sekarang terdaftar sebagai pelanggan.'); render(true); }
+      else refresh();
+    }, e => { if (S.user !== me) return; dbErr(e); if (me.role === null) { me.role = boss ? 'admin' : 'pelanggan'; authDone(me); } });
+    return;
   }
+  if (S.user && !S.user.demo) S.user = null;
+  stopListeners();
+  S.authReady = true;
+  render(true);
+}
+function blockedOut() {
+  if (S.unsubMe) { try { S.unsubMe(); } catch (_) {} S.unsubMe = null; }
+  S.user = null; S.after = null; stopListeners();
+  S.authNote = 'Akunmu sedang dinonaktifkan oleh admin ReCraft. Hubungi CraftMin lewat WhatsApp untuk bantuan.';
+  FB.auth.signOut().catch(() => {});
+  toast(S.authNote);
+  if (location.hash.slice(1) !== 'masuk') go('masuk'); else render(true);
+}
+function authDone(me) {
+  startListeners(me.uid, isStaff());
   S.authReady = true;
   const h = location.hash.slice(1);
-  if (u && (h === 'masuk' || h === 'daftar')) { const a = S.after; S.after = null; go(a || 'dashboard'); }
+  if (h === 'masuk' || h === 'daftar') { const a = S.after; S.after = null; go(afterLogin(a)); }
   else render(true);
 }
 function authMsg(e) {
@@ -1008,12 +1044,17 @@ const waBtn = (o, cls) => ADMIN_WA ? `<a class="btn btn-wa ${cls || ''}" href="$
 /* ---------- chrome ---------- */
 function renderChrome(h) {
   setDbStatus();
-  document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.arg === S.role)));
-  const logo = `<a class="logo" href="#${S.user ? 'dashboard' : 'beranda'}" data-go="${S.user ? 'dashboard' : 'beranda'}" aria-label="ReCraft, ke halaman utama"><span class="mark"><i></i><i></i><i></i><i></i></span>ReCraft</a>`;
+  const home = S.user ? homeOf() : 'beranda';
+  const logo = `<a class="logo" href="#${home}" data-go="${home}" aria-label="ReCraft, ke halaman utama"><span class="mark"><i></i><i></i><i></i><i></i></span>ReCraft</a>`;
   const navLink = (v, label) => `<a href="#${v}" data-go="${v}" ${h === v || (v === 'buat-unggah' && h.startsWith('buat-')) || (v === 'pesanan' && (h.startsWith('pesanan') || h.startsWith('lacak'))) || (v === 'cerita-saya' && h.startsWith('cerita')) ? 'aria-current="page"' : ''}>${label}</a>`;
   if (S.role !== 'pelanggan') {
-    hdr.className = 'top';
-    hdr.innerHTML = `<div class="wrap">${logo}<span class="pill ${S.role === 'crafter' ? 'soft-orange' : 'soft-purple'}">${S.role === 'crafter' ? 'Ruang kerja crafter' : 'Konsol admin'}</span><div class="hact"><span class="sm muted hide-m">${S.role === 'crafter' ? 'Bu Ratna · Crafter' : 'Admin ReCraft'}</span><div class="avatar" style="background:var(--${S.role === 'crafter' ? 'orange' : 'tq'})" aria-hidden="true">${S.role === 'crafter' ? 'BR' : 'AD'}</div></div></div>`;
+    hdr.className = 'top staff';
+    const r = roleOf(), me = S.user || {};
+    const ini = esc(String(me.name || roleName(r)).trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase());
+    const sw = r === 'admin'
+      ? `<div class="seg light" role="group" aria-label="Pilih ruang kerja">${[['admin', 'Admin', 'Konsol admin'], ['crafter', 'Crafter', 'Ruang kerja crafter']].map(t => `<button data-go="${t[0]}" aria-pressed="${S.role === t[0]}" aria-label="${t[2]}" title="${t[2]}">${t[1]}</button>`).join('')}</div>`
+      : `<span class="pill soft-orange">Ruang kerja crafter</span>`;
+    hdr.innerHTML = `<div class="wrap">${logo}${sw}<div class="hact"><span class="sm muted hide-m">${esc(me.name || '')} · ${roleName(r)}</span><div class="avatar hide-m" style="background:var(--${r === 'admin' ? 'tq' : 'orange'})" aria-hidden="true">${ini}</div><button class="btn btn-sec btn-sm" data-act="logout" aria-label="Keluar" title="Keluar">${ic('Logout', 16)}<span class="hide-m">Keluar</span></button></div></div>`;
     ftr.innerHTML = '';
     document.getElementById('fab').style.display = 'none';
     document.getElementById('chat').classList.remove('open');
@@ -1035,7 +1076,7 @@ function renderChrome(h) {
     <div><p class="b">Layanan</p>${fl('cara-kerja','Cara kerja')}${fl('jelajahi','Jelajahi produk')}${fl(S.user ? 'buat-unggah' : 'masuk','Mulai ReCraft')}${fl('tag-1','Contoh Memory Tag')}</div>
     <div><p class="b">ReCraft</p>${fl('tentang','Tentang kami')}${fl('faq','FAQ')}${fl('bantuan','Pusat bantuan')}</div>
     <div><p class="b">Akun</p>${S.user ? fl('profil','Profil') + fl('pesanan','Pesanan saya') + fl('cerita-saya','Cerita saya') : fl('masuk','Masuk') + fl('daftar','Daftar')}</div>
-  </div><hr class="hr"><div class="row sb wr note"><span>Jangan langsung dibuang. ReCraft saja.</span><span>Prototipe tugas kuliah · versi 1.2. Nama, angka, dan alamat contoh hanya untuk peragaan.</span></div></div></div>`;
+  </div><hr class="hr"><div class="row sb wr note"><span>Jangan langsung dibuang. ReCraft saja.</span><span>Prototipe tugas kuliah · versi 1.3. Nama, angka, dan alamat contoh hanya untuk peragaan.</span></div></div></div>`;
 }
 
 /* ---------- public views ---------- */
@@ -1224,8 +1265,8 @@ function vHelp() {
 function vLogin() {
   return `<section class="wrap"><form class="auth card col g16" data-sub="login" novalidate>
     <div class="row g12"><span class="mark" style="width:44px;height:44px"><i></i><i></i><i></i><i></i></span><div><h1 class="h3">Masuk ke ReCraft</h1><p class="sm muted">Lanjutkan cerita bajumu.</p></div></div>
-    ${S.err ? `<div class="errbox">${ic('Help', 18)}${esc(S.err)}</div>` : ''}
-    <label class="field"><span>Email</span><input class="inp" name="email" type="email" autocomplete="email" placeholder="nama@email.com" value="${esc(S.loginEmail)}"></label>
+    ${S.err || S.authNote ? `<div class="errbox">${ic('Help', 18)}${esc(S.err || S.authNote)}</div>` : ''}
+    <label class="field"><span>Email atau username</span><input class="inp" name="email" type="text" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="username" placeholder="nama@email.com" value="${esc(S.loginEmail)}"></label>
     <label class="field"><span>Kata sandi</span><input class="inp" name="pw" type="password" autocomplete="current-password" placeholder="Minimal 6 karakter"></label>
     <div class="row sb"><label class="check"><input type="checkbox" name="ingat" checked> Ingat saya</label><a href="#lupa-sandi" data-go="lupa-sandi" class="sm">Lupa kata sandi?</a></div>
     <button class="btn btn-pri btn-block" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Memproses…' : 'Masuk'}</button>
@@ -1256,6 +1297,12 @@ function vOnboard() {
   return `<section class="wrap"><div class="onb"><div class="art bg-${s[1]}">${ic(s[0], 80)}</div><p class="kick c-${s[1]}">Langkah ${S.onb + 1} dari 4</p><h1 class="h2">${s[2]}</h1><p class="lead muted mt12">${s[3]}</p>
     <div class="dots">${sl.map((x, i) => `<i class="${i === S.onb ? 'on' : ''}"></i>`).join('')}</div>
     <div class="row g12" style="justify-content:center"><button class="btn btn-ghost" data-act="onbSkip">Lewati</button><button class="btn btn-pri" data-act="onbNext">${S.onb === 3 ? 'Mulai sekarang' : 'Lanjut'} ${ic('ArrowRight', 18)}</button></div></div></section>`;
+}
+
+function vNoAccess(m, h) {
+  const msg = h === 'admin' ? 'Halaman ini hanya bisa dibuka oleh akun admin ReCraft.' : 'Halaman ini hanya bisa dibuka oleh akun tim ReCraft (admin atau crafter).';
+  const home = homeOf();
+  return `<section class="wrap band"><div class="card dash empty" style="max-width:560px;margin-inline:auto"><div class="tile bg-purple">${ic('Shield', 28)}</div><h1 class="h3">Halaman khusus tim ReCraft</h1><p class="muted">${msg}</p><a class="btn btn-pri" href="#${home}" data-go="${home}">Kembali ke halaman utama</a></div></section>`;
 }
 
 /* ---------- customer app ---------- */
@@ -1570,7 +1617,7 @@ function vTrack(m) {
         ${extra.length ? `<hr class="hr"><b class="sm">Catatan aktivitas</b>${extra.map(x => `<p class="sm mt8">${esc(x.label)} <span class="muted">· ${tgl(x.at)} ${jam(x.at)}</span></p>`).join('')}` : ''}</div>
       <div class="col g16">${payCard}${qcCard}${pickCard}
         ${o.step === 7 && story ? `<div class="card bg-tq col g8"><b>${ic('Book', 18)} Ceritamu sudah ada di Cerita Saya</b><a class="btn btn-pri btn-sm" style="align-self:flex-start" href="#cerita-${story.id}" data-go="cerita-${story.id}">Buka cerita</a></div>` : ''}
-        <div class="card dash col g8"><b>Simulasi prototipe</b><p class="sm muted">Tombol ini hanya ada di prototipe untuk memajukan status pesanan.</p>${o.pay === 'menunggu' ? `<button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simPay" data-arg="${o.id}">${ic('Check', 16)} Simulasikan admin mengonfirmasi pembayaran</button>` : `<button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simNext" data-arg="${o.id}" ${o.step === 7 || (o.step === 5 && o.qc === 'waiting') ? 'disabled' : ''}>${ic('ArrowRight', 16)} ${o.step === 7 ? 'Pesanan selesai' : o.step === 5 && o.qc === 'waiting' ? 'Menunggu persetujuanmu' : 'Simulasikan update berikutnya'}</button>`}</div></div>
+        ${o.remote ? '' : `<div class="card dash col g8"><b>Simulasi prototipe</b><p class="sm muted">Tombol ini hanya ada di prototipe untuk memajukan status pesanan.</p>${o.pay === 'menunggu' ? `<button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simPay" data-arg="${o.id}">${ic('Check', 16)} Simulasikan admin mengonfirmasi pembayaran</button>` : `<button class="btn btn-cta btn-sm" style="align-self:flex-start" data-act="simNext" data-arg="${o.id}" ${o.step === 7 || (o.step === 5 && o.qc === 'waiting') ? 'disabled' : ''}>${ic('ArrowRight', 16)} ${o.step === 7 ? 'Pesanan selesai' : o.step === 5 && o.qc === 'waiting' ? 'Menunggu persetujuanmu' : 'Simulasikan update berikutnya'}</button>`}</div></div>`}
     </div></section>`;
 }
 
@@ -1640,10 +1687,8 @@ function vNotif() {
 }
 
 /* ---------- crafter ---------- */
-function dbBanner(role) {
-  const y = 'background:var(--s-yellow);color:var(--i-yellow);border-color:var(--yellow)';
-  if (!FB.ok) return `<div class="okbox" style="${y};margin-bottom:20px">${ic('Help', 18)}<span>Mode tanpa database: hanya data contoh yang tampil.</span></div>`;
-  if (!isReal()) return `<div class="okbox" style="${y};margin-bottom:20px">${ic('Help', 18)}<span>Saat ini hanya data contoh yang tampil. <a href="#masuk" data-act="loginAs" data-arg="${role}">Masuk dengan akun asli</a> untuk melihat dan mengubah pesanan dari database.</span></div>`;
+function dbBanner() {
+  if (!isReal()) return '';
   return `<div class="okbox" style="margin-bottom:20px">${ic('Check', 18)}<span>Tersambung ke database: ${S.remoteOrders.length} pesanan asli tampil bersama data contoh. Pesanan asli ditandai label <b>database</b>.</span></div>`;
 }
 const dbTag = o => o.remote ? ' <span class="pill soft-tq">database</span>' : '';
@@ -1684,7 +1729,25 @@ function vCrafter() {
     <div class="row wr g12"><label class="btn btn-sec btn-sm" style="position:relative">${ic('Upload', 16)} Unggah foto progres<input type="file" accept="image/*" data-ch="crPhoto" style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Unggah foto progres"></label>
       <button class="btn btn-pri btn-sm" data-act="crNext" data-arg="${sel.id}" ${sel.pay === 'menunggu' || sel.step === 7 || (sel.step === 5 && sel.qc === 'waiting') ? 'disabled' : ''}>${crNextLabel(sel)}</button></div>
     <p class="note">Perubahan tahap di sini ikut terlihat di halaman pelacakan pelanggan dan di konsol admin.</p></div>` : '';
-  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu crafter"><span class="sbl tiny muted b" style="padding:6px 12px">Bu Ratna · Crafter</span>${nav.map(n => `<button data-act="crTab" data-arg="${n[0]}" ${S.crTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner('crafter')}${main}${detail}</div></div></section>`;
+  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu crafter"><span class="sbl tiny muted b" style="padding:6px 12px">${esc((S.user && S.user.name) || 'Crafter')} · ${roleName(roleOf())}</span>${nav.map(n => `<button data-act="crTab" data-arg="${n[0]}" ${S.crTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner()}${main}${detail}</div></div></section>`;
+}
+
+/* ---------- admin: kelola akun ---------- */
+const joinDate = u => u.createdAt ? tgl(new Date(u.createdAt)) : '-';
+const statusPill = u => u.status === 'nonaktif' ? '<span class="pill soft-pink">Nonaktif</span>' : '<span class="pill soft-tq">Aktif</span>';
+const usersLoading = () => `<div class="card dash empty"><div class="tile bg-blue">${ic('Refresh', 28)}</div><p class="b">Memuat data akun…</p></div>`;
+function userActions(u) {
+  const ask = S.uAsk && S.uAsk.split('|')[0] === u.id ? S.uAsk.split('|') : null;
+  const nm = esc(u.name || u.email || 'akun ini');
+  if (ask) {
+    const q = ask[1] === 'role' ? (ask[2] === 'crafter' ? `Jadikan ${nm} crafter?` : `Kembalikan ${nm} menjadi pelanggan?`) : (ask[2] === 'nonaktif' ? `Nonaktifkan akun ${nm}? Akun ini tidak bisa masuk sampai diaktifkan lagi.` : `Aktifkan lagi akun ${nm}?`);
+    return `<div class="col g8"><span class="sm b">${q}</span><div class="row g8 wr"><button class="btn btn-pri btn-sm" data-act="uDo">Ya, lanjutkan</button><button class="btn btn-sec btn-sm" data-act="uCancel">Batal</button></div></div>`;
+  }
+  const off = u.status === 'nonaktif';
+  const roleBtn = u.role === 'crafter'
+    ? `<button class="btn btn-sec btn-sm" data-act="uAsk" data-arg="${u.id}|role|pelanggan">Jadikan pelanggan</button>`
+    : `<button class="btn btn-sec btn-sm" data-act="uAsk" data-arg="${u.id}|role|crafter">${ic('Needle', 14)} Jadikan crafter</button>`;
+  return `<div class="row g8 wr">${roleBtn}<button class="btn btn-sec btn-sm" data-act="uAsk" data-arg="${u.id}|status|${off ? 'aktif' : 'nonaktif'}">${off ? 'Aktifkan' : 'Nonaktifkan'}</button></div>`;
 }
 
 /* ---------- admin ---------- */
@@ -1722,16 +1785,32 @@ function vAdmin() {
         <td>${o.step >= 1 ? esc(o.pickup.kurir || '-') : `<select class="sel" style="min-height:40px;padding:6px 10px" data-ch="kurir" data-id="${o.id}" aria-label="Kurir untuk ${o.id}"><option value="">Pilih kurir</option>${KURIR.map(k => `<option ${o.pickup.kurir === k ? 'selected' : ''}>${k}</option>`).join('')}</select>`}</td>
         <td><span class="pill ${o.step >= 1 ? 'soft-tq' : o.pickup.kurir ? 'soft-blue' : 'soft-yellow'}">${o.step >= 1 ? 'Sudah dijemput' : o.pickup.kurir ? 'Kurir ditugaskan' : 'Menunggu kurir'}</span></td></tr>`).join('')}</tbody></table></div>`;
   } else if (S.aTab === 'pelanggan') {
-    const cs = {}; S.orders.forEach(o => { const c = cs[o.email] || (cs[o.email] = { name:o.customer, email:o.email, n:0, t:0 }); if (!o.cancelled) { c.n++; c.t += o.total; } });
-    main = `<h1 class="h2">Pelanggan</h1><div class="tblwrap mt24"><table class="tbl stack"><thead><tr><th>Nama</th><th>Email</th><th class="num">Pesanan</th><th class="num">Total belanja</th></tr></thead><tbody>${Object.values(cs).sort((a, b) => b.t - a.t).map(c => `<tr><td class="b">${esc(c.name)}</td><td>${esc(c.email)}</td><td class="num">${c.n}</td><td class="num">${rp(c.t)}</td></tr>`).join('')}</tbody></table></div>`;
+    const q = S.uQ.trim().toLowerCase();
+    const all = S.users.filter(u => u.role !== 'crafter' && u.id !== S.user.uid && String(u.email || '').toLowerCase() !== ADMIN_EMAIL);
+    const list = all.filter(u => !q || ((u.name || '') + ' ' + (u.email || '') + ' ' + (u.phone || '')).toLowerCase().includes(q)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const nOrd = u => S.remoteOrders.filter(o => o.uid === u.id && !o.cancelled).length;
+    const tbl = `<div class="tblwrap"><table class="tbl stack"><thead><tr><th>Nama</th><th>Email</th><th>No. HP</th><th>Bergabung</th><th class="num">Pesanan</th><th>Status</th><th>Kelola</th></tr></thead><tbody>${list.map(u => `<tr><td class="b">${esc(u.name || '-')}</td><td>${esc(u.email || '-')}</td><td class="nw">${esc(u.phone || '-')}</td><td class="nw">${joinDate(u)}</td><td class="num">${nOrd(u)}</td><td>${statusPill(u)}</td><td>${userActions(u)}</td></tr>`).join('')}</tbody></table></div>`;
+    main = `<h1 class="h2">Pelanggan</h1><p class="muted mt8">Semua akun pelanggan yang mendaftar di website. Kamu bisa menjadikan pelanggan sebagai crafter atau menonaktifkan akunnya.</p>
+      <div class="row wr g12 mt24"><label class="field" style="width:min(100%,320px)"><span class="sr">Cari pelanggan</span><input class="inp" type="search" id="uQ" data-in="uQ" placeholder="Cari nama, email, atau nomor HP…" value="${esc(S.uQ)}"></label><span class="sm muted">${list.length} dari ${all.length} pelanggan</span></div>
+      <div class="mt16">${!S.loaded.users ? usersLoading() : list.length ? tbl : empty('Users', 'blue', all.length ? 'Tidak ada yang cocok' : 'Belum ada pelanggan', all.length ? 'Ubah kata kunci pencarian.' : 'Pelanggan yang mendaftar di website akan muncul di sini.')}</div>`;
   } else if (S.aTab === 'produk') {
     main = `<h1 class="h2">Produk</h1><p class="muted mt8">Produk yang dimatikan tidak tampil di Jelajahi dan tidak bisa dipilih pelanggan.</p>
       <div class="tblwrap mt24"><table class="tbl stack"><thead><tr><th>Produk</th><th>Kategori</th><th class="num">Harga dasar</th><th>Waktu</th><th>Aktif</th></tr></thead><tbody>${PRODUCTS.map(p => `<tr><td><span class="row g12"><span class="tile" style="width:44px;height:44px;overflow:hidden;border-radius:12px">${prodImg(p.key)}</span><b>${p.name}</b></span></td><td>${p.cat}</td><td class="num">${p.key === 'custom' ? 'Sesuai ide' : rp(p.base)}</td><td>${p.time}</td><td><span class="switch"><input type="checkbox" data-ch="prodOn" data-id="${p.key}" ${S.prodOn[p.key] ? 'checked' : ''} aria-label="Aktifkan ${p.name}"><span></span></span></td></tr>`).join('')}</tbody></table></div>`;
   } else {
-    const cr = [['Bu Ratna', 'Tote dan pouch', 6, '4,9'], ['Mas Dika', 'Boneka', 4, '4,8'], ['Kak Wulan', 'Scrunchie dan custom', 5, '4,9']];
-    main = `<h1 class="h2">Crafter</h1><div class="grid g-3 mt24">${cr.map((c, i) => `<div class="card col g8"><div class="avatar" style="background:var(--${['orange', 'tq', 'pink'][i]})">${c[0].split(' ').map(w => w[0]).join('')}</div><b class="h4">${c[0]}</b><span class="sm muted">Spesialis ${c[1]}</span><div class="sumline"><span>Pesanan aktif</span><span>${c[2]}</span></div><div class="sumline"><span>Rating</span><span>${c[3]}</span></div></div>`).join('')}</div><p class="note mt12">Nama crafter adalah contoh.</p>`;
+    const E = S.crErr || {}, V = S.crVal || {};
+    const fld = (n, l, t, ph, ac) => `<label class="field"><span>${l}</span><input class="inp ${E[n] ? 'bad' : ''}" name="${n}" type="${t}" placeholder="${ph}" autocomplete="${ac}" value="${t === 'password' ? '' : esc(V[n] || '')}">${E[n] ? `<span class="ferr">${esc(E[n])}</span>` : ''}</label>`;
+    const crs = S.users.filter(u => u.role === 'crafter').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const tbl = `<div class="tblwrap"><table class="tbl stack"><thead><tr><th>Nama</th><th>Email</th><th>No. HP</th><th>Bergabung</th><th>Status</th><th>Kelola</th></tr></thead><tbody>${crs.map(u => `<tr><td class="b">${esc(u.name || '-')}</td><td>${esc(u.email || '-')}</td><td class="nw">${esc(u.phone || '-')}</td><td class="nw">${joinDate(u)}</td><td>${statusPill(u)}</td><td>${userActions(u)}</td></tr>`).join('')}</tbody></table></div>`;
+    main = `<h1 class="h2">Crafter</h1><p class="muted mt8">Akun crafter bisa membuka ruang kerja crafter untuk memproses pesanan.</p>
+      <form class="card col g16 mt24" data-sub="addCrafter" novalidate><h2 class="h4">Tambah akun crafter</h2>
+        <div class="grid g-2">${fld('nama', 'Nama crafter', 'text', 'Nama lengkap', 'off')}${fld('email', 'Email', 'email', 'crafter@email.com', 'off')}${fld('hp', 'Nomor HP', 'tel', '08xx-xxxx-xxxx', 'off')}${fld('pw', 'Kata sandi awal', 'password', 'Minimal 6 karakter', 'new-password')}</div>
+        ${E.umum ? `<div class="errbox">${esc(E.umum)}</div>` : ''}
+        <div class="row wr g12"><button class="btn btn-pri" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Membuat akun…' : 'Buat akun crafter'}</button><span class="sm muted">Berikan email dan kata sandi ini ke crafter untuk masuk.</span></div>
+        <p class="note">Crafter yang sudah punya akun pelanggan tidak perlu akun baru. Cukup buka tab Pelanggan, lalu pilih Jadikan crafter.</p></form>
+      <div class="sechead mt32" style="margin-bottom:16px"><h2 class="h4">Daftar crafter</h2><span class="sm muted">${crs.length} crafter</span></div>
+      ${!S.loaded.users ? usersLoading() : crs.length ? tbl : empty('Needle', 'orange', 'Belum ada crafter', 'Tambahkan akun crafter lewat formulir di atas.')}`;
   }
-  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu admin"><span class="sbl tiny muted b" style="padding:6px 12px">Konsol admin</span>${nav.map(n => `<button data-act="aTab" data-arg="${n[0]}" ${S.aTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner('admin')}${main}</div></div></section>`;
+  return `<section class="wrap"><div class="ws"><nav class="sidebar" aria-label="Menu admin"><span class="sbl tiny muted b" style="padding:6px 12px">Konsol admin</span>${nav.map(n => `<button data-act="aTab" data-arg="${n[0]}" ${S.aTab === n[0] ? 'aria-current="page"' : ''}>${ic(n[1], 18)}${n[2]}</button>`).join('')}</nav><div>${dbBanner()}${main}</div></div></section>`;
 }
 
 /* ---------- order engine ---------- */
@@ -1846,7 +1925,6 @@ function toast(t) { const el = document.createElement('div'); el.className = 'to
 /* ---------- actions ---------- */
 const flowIdx = () => FLOW.findIndex(f => f[0] === (location.hash.slice(1)));
 const ACT = {
-  role(a) { S.menu = false; if (a === 'crafter') go('crafter'); else if (a === 'admin') go('admin'); else go(S.user ? 'dashboard' : 'beranda'); },
   menu() { S.menu = !S.menu; hdr.classList.toggle('open', S.menu); const b = hdr.querySelector('.menubtn'); if (b) { b.setAttribute('aria-expanded', String(S.menu)); b.innerHTML = ic(S.menu ? 'Close' : 'Menu'); } },
   start() { if (S.user) ACT.newRecraft(); else { S.after = 'buat-unggah'; go('masuk'); } },
   startWith(k) { S.draft = newDraft(k); if (S.user) go('buat-unggah'); else { S.after = 'buat-unggah'; go('masuk'); } },
@@ -1855,7 +1933,6 @@ const ACT = {
   demo() { S.user = Object.assign({}, DEMO); S.err = ''; const a = S.after; S.after = null; toast('Masuk sebagai ' + DEMO.name); if (a === 'buat-unggah') S.draft = newDraft(S.draft.product); go(a || 'dashboard'); },
   logout() { const real = isReal(); S.draft = newDraft(); S.after = null; go('beranda'); if (real) FB.auth.signOut().then(() => toast('Kamu sudah keluar.')).catch(dbErr); else { S.user = null; toast('Kamu sudah keluar.'); render(true); } },
   logoutTo(a) { if (!isReal()) S.user = null; S.draft = newDraft(); go(a || 'beranda'); },
-  loginAs(role) { if (S.user && S.user.demo) S.user = null; S.after = role; go('masuk'); },
   excat(c) { S.exCat = c; document.querySelectorAll('[data-act=excat]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.arg === c))); applyExplore(); },
   samplePhoto() { const d = S.draft; if (d.photos.length >= 4) { toast('Maksimal 4 foto.'); return; } d.photos.push({ name:'kemeja-contoh.jpg', src:PH.kemeja }); d.garment = 'Kemeja'; d.material = 'Katun'; S.err = ''; rerender(); },
   rmPhoto(i) { const d = S.draft; d.photos.splice(+i, 1); Object.keys(d.motif.src || {}).forEach(k => { if (d.motif.src[k] >= d.photos.length) d.motif.src[k] = 0; }); rerender(); },
@@ -1936,7 +2013,19 @@ const ACT = {
   crTab(t) { S.crTab = t; rerender(); },
   crSel(id) { S.crSel = id; if (S.crTab === 'qc') S.crTab = 'papan'; rerender(); const d = document.getElementById('crdetail'); if (d) d.scrollIntoView({ behavior:'smooth', block:'start' }); },
   crNext(id) { const o = findOrder(id); if (o && advance(o)) { toast(o.id + ': ' + stepName(o, o.step)); rerender(); } },
-  aTab(t) { S.aTab = t; rerender(); }
+  aTab(t) { S.aTab = t; S.uAsk = null; rerender(); },
+  uAsk(a) { S.uAsk = a; rerender(); },
+  uCancel() { S.uAsk = null; rerender(); },
+  uDo() {
+    if (!S.uAsk) return; const [uid, field, val] = S.uAsk.split('|'); S.uAsk = null;
+    const u = S.users.find(x => x.id === uid);
+    if (!u || roleOf() !== 'admin' || !isReal() || !['role', 'status'].includes(field)) { rerender(); return; }
+    u[field] = val; rerender();
+    const nm = u.name || u.email;
+    FB.db.collection('users').doc(uid).set({ [field]:val }, { merge:true })
+      .then(() => toast(field === 'role' ? (val === 'crafter' ? nm + ' sekarang crafter.' : nm + ' sekarang pelanggan.') : (val === 'nonaktif' ? 'Akun ' + nm + ' dinonaktifkan.' : 'Akun ' + nm + ' aktif lagi.')))
+      .catch(dbErr);
+  }
 };
 function posGet(d, part) { d.motif.pos = d.motif.pos || {}; return d.motif.pos[part] || (d.motif.pos[part] = { x:0, y:0, s:1, r:0 }); }
 function applyPos(part) { const el = document.getElementById('lv-' + part); if (!el) return; const b = el.getAttribute('data-base'); el.setAttribute('patternTransform', tfStr(posGet(S.draft, part)) + (b ? ' ' + b : '')); }
@@ -1987,6 +2076,7 @@ const IN = {
   'p-note'(t) { S.draft.pickup.note = t.value; },
   sigTyped(t) { S.draft.agree.typed = t.value; const p = document.getElementById('sigPrev'); if (p) p.textContent = t.value; },
   bas(t) { const b = document.getElementById('bas'); if (b) b.style.setProperty('--p', t.value + '%'); },
+  uQ(t) { S.uQ = t.value; const pos = t.selectionStart; rerender(); const n = document.getElementById('uQ'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } },
   aQ(t) { S.aQ = t.value; const pos = t.selectionStart; rerender(); const n = document.getElementById('aQ'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }
 };
 const CH = {
@@ -2015,7 +2105,8 @@ function addFiles(files) {
 }
 const SUB = {
   login(f) {
-    const e = f.email.value.trim(), p = f.pw.value, keep = !f.ingat || f.ingat.checked; S.loginEmail = e;
+    const typed = f.email.value.trim(), e = loginId(typed), p = f.pw.value, keep = !f.ingat || f.ingat.checked; S.loginEmail = typed; S.authNote = '';
+    if (e === ADMIN_EMAIL && !FB.ok) { S.err = 'Akun admin hanya bisa dipakai saat website tersambung ke database.'; rerender(); return; }
     if (!/^\S+@\S+\.\S+$/.test(e)) { S.err = 'Masukkan email yang valid.'; rerender(); return; }
     if (p.length < 6) { S.err = 'Kata sandi minimal 6 karakter.'; rerender(); return; }
     S.err = '';
@@ -2035,6 +2126,7 @@ const SUB = {
     if (v.nama.length < 3) E.nama = 'Nama minimal 3 huruf.';
     if (!/^\S+@\S+\.\S+$/.test(v.email)) E.email = 'Format email belum benar.';
     else if (v.email.toLowerCase() === DEMO.email) E.email = 'Email ini dipakai akun demo. Pakai email lain.';
+    else if (loginId(v.email) === ADMIN_EMAIL) E.email = 'Email ini khusus untuk akun admin ReCraft.';
     if (!/^[0-9+\-\s]{9,16}$/.test(v.hp)) E.hp = 'Nomor HP 9–16 angka.';
     if (pw.length < 6) E.pw = 'Kata sandi minimal 6 karakter.';
     if (f.pw2.value !== pw || !f.pw2.value) E.pw2 = 'Kata sandi tidak sama.';
@@ -2045,7 +2137,7 @@ const SUB = {
       S.user = { name:v.nama, email:v.email.toLowerCase(), phone:v.hp, address:'', demo:true }; S.regErr = null; S.regVal = null; S.onb = 0;
       toast('Akun berhasil dibuat.'); go('mulai'); return;
     }
-    S.busy = true; S.pendingProfile = { name:v.nama, phone:v.hp }; S.after = 'mulai'; S.onb = 0; rerender();
+    S.busy = true; S.pendingProfile = { name:v.nama, phone:v.hp, email:v.email.toLowerCase() }; S.after = 'mulai'; S.onb = 0; rerender();
     FB.auth.createUserWithEmailAndPassword(v.email, pw).then(cred => {
       const u = cred.user;
       u.updateProfile({ displayName:v.nama }).catch(() => {});
@@ -2061,12 +2153,46 @@ const SUB = {
     });
   },
   forgot(f) {
-    const e = f.email.value.trim(); S.loginEmail = e;
+    const typed = f.email.value.trim(), e = loginId(typed); S.loginEmail = typed;
+    if (e === ADMIN_EMAIL) { S.err = 'Kata sandi akun admin hanya bisa diganti oleh pengelola lewat Firebase Console.'; rerender(); return; }
     if (!/^\S+@\S+\.\S+$/.test(e)) { S.err = 'Masukkan email yang valid.'; rerender(); return; }
     const done = () => { S.busy = false; S.err = ''; S.forgotSent = true; rerender(); };
     if (!FB.ok) { done(); return; }
     S.busy = true; rerender();
     FB.auth.sendPasswordResetEmail(e).then(done, err => { if (err && err.code === 'auth/user-not-found') done(); else { S.busy = false; S.err = authMsg(err); rerender(); } });
+  },
+  addCrafter(f) {
+    const v = { nama:f.nama.value.trim(), email:f.email.value.trim().toLowerCase(), hp:f.hp.value.trim() }, pw = f.pw.value, E = {};
+    if (v.nama.length < 3) E.nama = 'Nama minimal 3 huruf.';
+    if (!/^\S+@\S+\.\S+$/.test(v.email)) E.email = 'Format email belum benar.';
+    else if (v.email === ADMIN_EMAIL || v.email === DEMO.email) E.email = 'Email ini tidak bisa dipakai untuk crafter.';
+    if (!/^[0-9+\-\s]{9,16}$/.test(v.hp)) E.hp = 'Nomor HP 9–16 angka.';
+    if (pw.length < 6) E.pw = 'Kata sandi minimal 6 karakter.';
+    S.crErr = E; S.crVal = v;
+    if (Object.keys(E).length || S.busy) { rerender(); return; }
+    if (!isReal() || roleOf() !== 'admin') return;
+    S.busy = true; rerender();
+    const fail = err => {
+      S.busy = false; const c = (err && err.code) || '';
+      S.crErr = c === 'auth/email-already-in-use' ? { email:'Email ini sudah terdaftar. Kalau orangnya sudah punya akun pelanggan, jadikan crafter dari tab Pelanggan.' }
+        : /password/.test(c) ? { pw:authMsg(err) } : /email/.test(c) ? { email:authMsg(err) }
+        : { umum:/permission/i.test(c) ? 'Database menolak menyimpan akun. Pastikan aturan keamanan (Rules) versi terbaru sudah dipasang.' : authMsg(err) };
+      rerender();
+    };
+    let sec;
+    // Akun crafter dibuat lewat "aplikasi kedua" supaya sesi admin tidak ikut berganti.
+    try { sec = (firebase.apps || []).find(a => a.name === 'buat-akun') || firebase.initializeApp(FIREBASE_CONFIG, 'buat-akun'); } catch (e) { fail(e); return; }
+    const sa = sec.auth(), P = firebase.auth.Auth && firebase.auth.Auth.Persistence;
+    Promise.resolve(P && P.NONE ? sa.setPersistence(P.NONE) : null).catch(() => {})
+      .then(() => sa.createUserWithEmailAndPassword(v.email, pw))
+      .then(cred => {
+        const uid = cred.user.uid;
+        return cred.user.updateProfile({ displayName:v.nama }).catch(() => {})
+          .then(() => sa.signOut().catch(() => {}))
+          .then(() => FB.db.collection('users').doc(uid).set({ name:v.nama, email:v.email, phone:v.hp, address:'', role:'crafter', status:'aktif', createdAt:Date.now() }));
+      })
+      .then(() => { S.busy = false; S.crErr = null; S.crVal = null; toast('Akun crafter ' + v.nama + ' berhasil dibuat.'); rerender(); })
+      .catch(fail);
   },
   profile(f) {
     const box = document.getElementById('perr'); if (f.name.value.trim().length < 3) { box.innerHTML = '<div class="errbox">Nama minimal 3 huruf.</div>'; return; }
@@ -2089,7 +2215,7 @@ const ROUTES = [
   ['mulai', vOnboard, 1], ['dashboard', vDash, 1], [/^buat-[a-z]+$/, vFlow, 1], [/^berhasil-(RC-[\w-]+)$/, vSuccess, 1],
   ['pesanan', vOrders, 1], [/^pesanan-(RC-[\w-]+)$/, vOrder, 1], [/^lacak-(RC-[\w-]+)$/, vTrack, 1],
   ['cerita-saya', vStories, 1], [/^cerita-([\w-]+)$/, vStory, 1], [/^tag-([\w-]+)$/, vTag], ['profil', vProfile, 1], ['notifikasi', vNotif, 1],
-  ['crafter', vCrafter], ['admin', vAdmin]
+  ['crafter', vCrafter, 1], ['admin', vAdmin, 1]
 ];
 const TITLES = { beranda:'Beranda', 'cara-kerja':'Cara Kerja', jelajahi:'Jelajahi', tentang:'Tentang', faq:'FAQ', bantuan:'Bantuan', masuk:'Masuk', daftar:'Daftar', dashboard:'Dashboard', pesanan:'Pesanan Saya', 'cerita-saya':'Cerita Saya', profil:'Profil', notifikasi:'Notifikasi', crafter:'Crafter', admin:'Admin' };
 let hooks = [], lastHash = null;
@@ -2101,12 +2227,15 @@ function render(keep) {
   let view = null, m = null, auth = 0;
   for (const r of ROUTES) { m = null; if (typeof r[0] === 'string' ? r[0] === h : (m = h.match(r[0]))) { view = r[1]; auth = r[2] || 0; break; } }
   if (!view) { go('beranda'); return; }
-  S.role = h === 'crafter' ? 'crafter' : h === 'admin' ? 'admin' : 'pelanggan';
+  const roleWait = !!(S.user && !S.user.demo && !S.user.role);
   if (auth && !S.user) {
     if (!S.authReady) { lastHash = h; app.innerHTML = `<section class="wrap band"><div class="card dash empty"><div class="tile bg-orange">${ic('User', 28)}</div><p class="b">Memuat akunmu…</p></div></section>`; renderChrome(h); return; }
     S.after = h; go('masuk'); return;
   }
-  if ((h === 'masuk' || h === 'daftar') && S.user && !S.busy) { const a = S.after; S.after = null; go(a || 'dashboard'); return; }
+  if (roleWait && (auth || h === 'masuk' || h === 'daftar')) { lastHash = h; S.role = 'pelanggan'; app.innerHTML = `<section class="wrap band"><div class="card dash empty"><div class="tile bg-orange">${ic('User', 28)}</div><p class="b">Memuat akunmu…</p></div></section>`; renderChrome(h); return; }
+  if ((h === 'masuk' || h === 'daftar') && S.user && !S.busy) { const a = S.after; S.after = null; go(afterLogin(a)); return; }
+  if (PAGE_ROLES[h] && !PAGE_ROLES[h].includes(roleOf())) view = vNoAccess;
+  S.role = view === vNoAccess ? 'pelanggan' : PAGE_ROLES[h] ? h : 'pelanggan';
   const y = window.scrollY, same = h === lastHash;
   hooks = [];
   const html = view(m, h);
